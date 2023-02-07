@@ -1,0 +1,330 @@
+\documentclass{ctexart}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,allcolors=red]{hyperref}
+\usepackage{listings}%插入关键字高亮的代码
+\lstset{basicstyle=\small,
+basicstyle=\tt,
+keywordstyle=\color{blue},
+commentstyle=\color{green},
+numbers=left,
+numberstyle=\tiny\color{red},
+columns=flexible,}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{float}
+
+\begin{document}
+\newpage
+\thispagestyle{empty}
+%\vspace*{\fill}
+    \begin{center}
+        \Huge\textbf{纯惯导动态导航定位实习报告}
+    \end{center}
+\vspace*{\fill}
+
+\begin{table}[h]
+    \centering
+    \large
+    \begin{tabular}{cc}
+    \textbf{课程名称:} & 惯性导航原理 \\ \cline{2-2}
+    \textbf{班级:} & 导航工程3班 \\ \cline{2-2}
+    \textbf{姓名:} & 叶通 \\  \cline{2-2}
+    \textbf{学号:} & 2020302142138 \\ \cline{2-2}
+    \textbf{实验地点:}&武汉大学友谊广场 \\ \cline{2-2}
+    \textbf{实验名称:}&纯惯导动态导航定位实习\\ \cline{2-2}
+    \textbf{小组成员:}&周天晨,周沛,叶通，陶安博，李凯歌\\ \cline{2-2}
+    \textbf{指导老师:}&牛小骥,张万威\\ \cline{2-2}
+    \textbf{实验时间:}&2022年10月21日\\ \cline{2-2}
+    \textbf{时间:} & \today \\ \cline{2-2}
+    \end{tabular}
+\end{table}
+
+\newpage
+\pagenumbering{Roman}
+\setcounter{page}{1}
+\tableofcontents
+
+\newpage
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\section{纯惯导动态导航定位实验}
+\subsection{实验目的}
+\begin{enumerate}[(1)]
+\item 通过编程实现高精度惯导数据处理，加深对惯性导航原理及机械编排算法的理解。
+\item 通过分析纯惯导解算位置、速度和姿态的误差，对惯性导航的误差累积形成直观认识。
+\item 初步掌握零速修正（将速度重置为零），分析和理解零速修正对惯性导航误差的修正作用。
+\end{enumerate}
+\subsection{实验设备}
+中高精度 GNSS/INS 组合导航系统、GNSS 天线、GNSS 基站接收机、实验小推车，
+星网宇达7681（黄色IMU）。
+\subsection{实验原理}
+\label{1.3}
+\subsubsection{惯导姿态更新原理}
+根据矩阵导数的定义，有
+\begin{equation}
+\dot{C}^{R}_{b}(t)=\lim_{\Delta t\rightarrow 0}\frac{C^R_b(t+\Delta t)-C^R_b(t)}{\Delta t}
+\label{eq:1}
+\end{equation}
+又由方向余弦矩阵的连乘规则可得
+\begin{equation}
+C^R_b(t+\Delta t)=C^R_{b(t)}C^{b(t)}_{b(t+\Delta t)}
+\label{eq:2}
+\end{equation}
+由于当$\Delta t\rightarrow 0$时，相对姿态角为小角度，根据欧拉角与方向余弦矩阵的转换关系式，在小角度假设下有
+\begin{equation}
+\lim_{\Delta t\rightarrow 0}C^{b(t)}_{b(t+\Delta t)}=\mathbf{I}+(\Delta \theta\times)
+\label{eq:3}
+\end{equation}
+将\eqref{eq:2}与\eqref{eq:3}带入\eqref{eq:1}，并指定当地导航坐标系为参考系时有
+\begin{equation}
+\dot{C}^n_b=C^n_b(\omega^b_{nb}\times)
+\label{eq:4}
+\end{equation}
+对方程用迭代方式求解后可得其闭合解表达式
+\begin{equation}
+C(t)=C(0)exp\left(\int^t_0 \Omega(\tau)d\tau\right)
+\label{eq:5}
+\end{equation}
+将其展开，并写成离散形式。此时记陀螺的角增量为$\Delta\theta_k=\int^{t_k}_{t_{k-1}}\omega^b_{ib}(t)dt$,则可得
+\begin{equation}
+\mathbf{C}_{b(k)}^{b(k-1)}=\mathbf{I}+\frac{\sin \Delta \theta_{k}}{\Delta \theta_{k}}\left[\Delta \boldsymbol{\theta}_{k} \times\right]+\frac{1-\cos \Delta \theta_{k}}{\Delta \theta_{k}^{2}}\left[\Delta \boldsymbol{\theta}_{k} \times\right]^{2}
+\label{eq:6}
+\end{equation}
+式\eqref{eq:6}的前提条件是在$[t_{k-1},t_k]$时刻载体做定轴转动
+
+引入等效旋转矢量，并假设角速度向量在积分时间内随时间线性变化，可得
+\begin{equation}
+\Phi_k=\Delta\theta_k+\frac{1}{12}\Delta\theta_{k-1}\times\Delta\theta_k
+\label{eq:7}
+\end{equation}
+顾及n系的变化，用$\zeta$ 来表示n系变化的等效旋转矢量，有
+\begin{equation}
+\boldsymbol{\zeta}_{k}=\int_{t_{k-1}}^{t_{k}}\left[\boldsymbol{\omega}_{i e}^{n}(t)+\boldsymbol{\omega}_{e n}^{n}(t)\right] d t \approx\left[\boldsymbol{\omega}_{i e}^{n}\left(t_{k-1}\right)+\boldsymbol{\omega}_{e n}^{n}\left(t_{k-1}\right)\right] \Delta t
+\end{equation}
+其中
+\begin{equation}
+\omega^n_{ie}=\begin{bmatrix}
+\omega_ecos\phi&0&-\omega_esin\phi
+\end{bmatrix}^T
+\end{equation}
+\begin{equation}
+\boldsymbol{\omega}_{e n}^{n}=\left[\begin{array}{c}
+v_{E} /\left(R_{N}+h\right) \\
+-v_{N} /\left(R_{M}+h\right) \\
+-v_{E} \tan \varphi /\left(R_{N}+h\right)
+\end{array}\right]
+\end{equation}
+\begin{equation}
+R_{M}=\frac{a\left(1-e^{2}\right)}{\sqrt{\left(1-e^{2} \sin ^{2} \varphi\right)^{3}}}
+\end{equation}
+\begin{equation}
+R_{N}=\frac{a}{\sqrt{1-e^{2} \sin ^{2} \varphi}}
+\end{equation}
+随后即可由方向余弦矩阵实现姿态的递推计算
+\begin{equation}
+\mathbf{C}^{n(k)}_{b(k)}=\mathbf{C}^{n(k)}_{n(k-1)}\mathbf{C}^{n(k-1)}_{b(k-1)}\mathbf{C}^{b(k-1)}_{b(k)}
+\end{equation}
+其中b系和n系的变化矩阵$\mathbf{C}^{b(k-1)}_{b(k)}$$\mathbf{C}^{n(k)}_{n(k-1)}$的计算如下：
+\begin{equation}
+\mathbf{C}_{b(k)}^{b(k-1)}=\mathbf{I}+\frac{\sin \left\|\boldsymbol{\phi}_{k}\right\|}{\left\|\boldsymbol{\phi}_{k}\right\|}\left(\boldsymbol{\phi}_{k} \times\right)+\frac{1-\cos \left\|\boldsymbol{\phi}_{k}\right\|}{\left\|\boldsymbol{\phi}_{k}\right\|^{2}}\left(\phi_{k} \times\right)\left(\phi_{k} \times\right)
+\end{equation}
+\begin{equation}
+\mathbf{C}_{n(k-1)}^{n(k)}=\mathbf{I}-\frac{\sin \left\|\zeta_{k}\right\|}{\left\|\zeta_{k}\right\|}\left(\zeta_{k} \times\right)+\frac{1-\cos \left\|\zeta_{k}\right\|}{\left\|\zeta_{k}\right\|^{2}}\left(\zeta_{k} \times\right)\left(\zeta_{k} \times\right)
+\end{equation}
+
+\subsubsection{速度更新原理}
+对地速微分方程做数值积分，并离散化处理，可写作如下形式
+\begin{equation}
+\boldsymbol{v}_{k}^{n}=\boldsymbol{v}_{k-1}^{n}+\Delta \boldsymbol{v}_{f, k}^{n}+\Delta \boldsymbol{v}_{g / c o r, k}^{n}
+\label{eq:16}
+\end{equation}
+其中对哥氏项进行积分近似处理后有
+\begin{equation}
+\Delta \boldsymbol{v}_{g / c o r, k}^{n}=\left[\boldsymbol{g}_{p}^{n}-\left(2 \boldsymbol{\omega}_{i e}^{n}+\boldsymbol{\omega}_{e n}^{n}\right) \times \boldsymbol{v}^{n}\right]_{t_{k-1 / 2}} \Delta t
+\label{eq:17}
+\end{equation}
+其中$g_p$和$\omega^n_{ie}$都是位置的函数，而$\omega^n_{ie}$是位置和时间的函数，而此时还没有得到$t_k$时刻的位置，故不能用内插的方法得到$t_{k-\frac{1}{2}}$时刻的速度和位置，只能由上一时刻的速度和位置，上上时刻的速度和位置做线性外推的方式得到，如速度的外推有：
+\begin{equation}
+\boldsymbol{v}_{k-1 / 2}^{n}=\boldsymbol{v}_{k-1}^{n}+\frac{1}{2}\left(\boldsymbol{v}_{k-1}^{n}-\boldsymbol{v}_{k-2}^{n}\right)=\frac{3}{2} \boldsymbol{v}_{k-1}^{n}-\frac{1}{2} \boldsymbol{v}_{k-2}^{n}
+\end{equation}
+对比力积分项做近似处理有如下表达式
+\begin{equation}
+\Delta \boldsymbol{v}_{f, k}^{n}=\left[\mathbf{I}-\frac{1}{2}\left(\boldsymbol{\zeta}_{n(k-1) n(k)} \times\right)\right] \mathbf{C}_{b(k-1)}^{n(k-1)} \Delta \boldsymbol{v}_{f, k}^{b(k-1)}
+\label{eq:19}
+\end{equation}
+其中
+\begin{equation}
+\Delta v^{b(k-1)}_{f,k}=\Delta v_k+\int^{t_k}_{t_{k-1}}\Delta\theta(t)\times\mathbf{f}^b(t)dt
+\label{eq:20}
+\end{equation}
+在双子样假设下可得到
+\begin{equation}
+\Delta \boldsymbol{v}_{f, k}^{b(k-1)}=\Delta \boldsymbol{v}_{k}+\frac{1}{2} \Delta \boldsymbol{\theta}_{k} \times \Delta \boldsymbol{v}_{k}+\frac{1}{12}\left(\Delta \boldsymbol{\theta}_{k-1} \times \Delta \boldsymbol{v}_{k}+\Delta \boldsymbol{v}_{k-1} \times \Delta \boldsymbol{\theta}_{k}\right)
+\label{eq:21}
+\end{equation}
+将\eqref{eq:20}\eqref{eq:21}带入\eqref{eq:19}，再将\eqref{eq:19}\eqref{eq:17}带入\eqref{eq:16}，即可得到速度的更新公式。
+
+\subsubsection{位置更新原理}
+假设积分周期内$v_D$随时间线性变化，有
+\begin{equation}
+h_{k}=h_{k-1}-\frac{1}{2}\left(v_{D, k-1}+v_{D, k}\right)\left(t_{k}-t_{k-1}\right)
+\end{equation}
+更新纬度时，忽略子午圈半径随纬度和时间的变化，高程也简化为常值，可得
+\begin{equation}
+\varphi_{k}=\varphi_{k-1}+\frac{v_{N, k}+v_{N, k-1}}{2\left(R_{M, k-1}+\bar{h}\right)}\left(t_{k}-t_{k-1}\right)
+\end{equation}
+同理，更新经度有
+\begin{equation}
+\lambda_{k}=\lambda_{k-1}+\frac{v_{E, k}+v_{E, k-1}}{2\left(R_{N, k-1 / 2}+\bar{h}\right) \cos \bar{\varphi}}\left(t_{k}-t_{k-1}\right)
+\end{equation}
+其中的高程和纬度值都用的是前后两个时刻的平均值。
+
+\subsection{实验步骤及方法}
+\begin{enumerate}[(1)]
+\item 编写纯惯导数据处理程序，用给定的示例数据进行程序的调试和验证。
+\item 采集小推车平台上的惯导数据，具体操作以实验安排为准。
+\item 编写的程序验证无误后，处理小推车的实测数据，评估导航精度。
+\end{enumerate}
+\subsubsection{用示例数据调试程序}
+\label{1.4.1}
+读取二进制示例数据，将解算结果与参考结果求差，每个历元的位置，速度和姿态满足以下要求时可视为程序实现正确
+\begin{enumerate}[*]
+\item 经度和纬度之差应控制在 1.0e-7 deg 的量级
+\item 高程之差不大于 2 m
+\item 速度之差应控制在 1.0e-5~1.0e-4 m/s 的量级
+\item 姿态之差应控制在 1.0e-7 deg 的量级
+\end{enumerate}
+\subsubsection{小推车的数据采集过程}
+\begin{enumerate}[(1)]
+\item 连接设备，测量GNSS天线杆臂。
+\item 在开始正式实验前，对小推车猛地进行前后，左右，上下的倾斜和摆动，以便后面处理数据时，先对此段数据进行检测是否符合预期。
+\item 将小推车推至预设起点处，静止5分钟用于初始对准，期间车头朝向北。
+\item 开始进行动态测试。将卷尺作为标记放在小车出发的初始位置后，由一名组员开始推着小推车在友谊广场上按“品”字的轨迹进行运动，另一名同学负责拍视频记录整个操作过程并计时。当推行时间到达四分钟时，在拐点处停下静止一分钟。随后再由另外一名同学进行推车工作。循环此过程，当每名组员都轮流过一遍后，结束实验，将小推车推回起点并静止5分钟，用于获得更高精度的参考真值。
+\item 拷贝数据，确认原始数据的完整后，关闭设备电源
+\end{enumerate}
+
+\section{编程实现过程}
+\subsection{惯导姿态速度位置更新算法实现}
+先对实现惯导算法更新的原理和公式做简要分析，发现其中用到了大量的向量和矩阵运算，需要有简洁的方法实现这些运算。再反复斟酌下，选择了C++语言进行了本程序的实现，需要作图时再将数据导出到MATLAB中绘图。
+
+首先创建矩阵类，用动态一维数组来表示矩阵，实现矩阵的加减乘，数乘，赋值，转置，伴随，行列式，求逆等基本运算。
+\begin{figure}[H]
+\includegraphics[height=11cm,width=1\linewidth]{矩阵类.jpg}
+\caption{矩阵类}
+\end{figure}
+随后，用向量类继承矩阵类，这样一来，就可以直接用矩阵的加减法，赋值等部分运算，同时新增向量特有的叉乘，求模，反对称矩阵等运算。
+\begin{figure}[H]
+\includegraphics[height=7cm,width=1\linewidth]{向量类.jpg}
+\caption{向量类}
+\end{figure}
+
+在有了实现基础数学运算功能后，开始着手对载体姿态，位置和算法的更新进行实现。
+由于载体是一个具体的整体，有位置，速度，姿态角多种属性，故考虑创建载体类，由外界提供加速度计和陀螺仪输出数据，实现自身内部的位置，速度，姿态角等变量的更新。由于更新时还需要用到前一时刻的位置和速度信息进行线性外推，故将前一时刻的速度和位置信息保留也作为载体类的私有成员。
+\begin{figure}[H]
+\includegraphics[height=9cm,width=1\linewidth]{载体类.jpg}
+\caption{载体类}
+\end{figure}
+
+然后就是对具体每一时刻的更新算法实现。一开始是准备写成三个函数，分别更新姿态，速度和位置。但考虑到更新速度要用到上一时刻的姿态，更新姿态又要用到上一时刻的速度，这样一来如果先对二者中的任意其一进行更新后，将覆盖上一时刻的状态，导致无法进行另一量的更新。于是，采用三者一起在同一函数中进行更新，这样一来，也可以对省去一些中间变量的重复计算（如更新速度和姿态都用到的表示n系变化的等效旋转矢量）。
+
+更新函数输入当前时刻和上一时刻的速度增量向量和角增量向量以及间隔时间，对当前状态进行更新。本程序采用方向余弦矩阵对姿态进行更新，更新完方向余弦矩阵后再由方向余弦矩阵得到姿态角。
+
+更新的具体实现按照\ref{1.3}所述的具体公式实现，在此不作详述。
+\subsection{对示例数据的分析处理}
+主程序的第一部分为对示例数据的分析处理。用fread函数，每次从IMU.bin文件中读取7个八字节大小存入double数组。设置好载体的初始姿态后，对将读取的数据从double数组中转成速度增量向量和角增量向量，将其带入更新函数中进行更新。同时比较参考结果。在符合要求后，将二者作差输出到文件中
+\subsection{对小推车采集数据的分析处理}
+主程序的第二部分为对小推车采集数据的分析处理。此时已经有其他组员发现小推车数据出现问题，故直接使用其他小组的数据进行分析。
+
+先读取ASC文件，按照固定格式用相应的字符串处理函数提取出相应数据，并做轴系调整。得到速度增量向量和角增量向量，后进入载体状态更新，将更新后的位置结果化成小范围内适用的站心坐标系坐标。读取用GNSS作出的真值文件，并将其与计算的结果作差，输出误差数据。
+\subsection{零速修正算法的实现}
+实现零速修正，关键是看如何判断载体是静止的。由于在实验时小推车运动和静止的时间段都有相应记录，故可直接根据静止时间段将小推车的速度直接赋零。但是，为了得到通用的零速修正算法，故本程序采取另一种方式。由于小推车静止在地面上时，它的加速度计的z轴应该与当地重力加速度方向一致，输出的数值也大约在-9.79左右，另外两轴表现为在0值附近起伏的噪声；而当载体运动时，三轴加速度都会与9.79这个数值有较大偏差。故考虑用速度增量向量的模长作为一个判断标准，当载体连续100个历元获取的速度增量向量的模与它静止时的理论值（0.09795）之差的和小于阈值，则判断为载体静止，对载体速度赋零。随后，重新开始下一个100个历元的计数和统计。
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{零速修正代码.jpg}
+\caption{零速修正代码}
+\end{figure}
+\section{成图结果与分析}
+\subsection{示例数据的成图分析}
+在MATLAB中将解算结果与参考结果的差值按历元绘出，得到姿态，速度，位置的差异曲线图
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{示例数据姿态差异曲线.jpg}
+\caption{示例数据姿态差异曲线}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{示例数据速度差异曲线.jpg}
+\caption{示例数据速度差异曲线}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{示例数据位置差异曲线.jpg}
+\caption{示例数据位置差异曲线}
+\end{figure}
+
+可以看出差异的量级都在\ref{1.4.1}中所提过的规定的量级之内，说明编写的程序比较正确，较好地完成了惯导状态更新的任务。
+\subsection{小推车解算结果的成图分析}
+接下来继续作图。得到小推车数据在零速修正之前的轨迹和高程变化曲线
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{小推车轨迹（无零速修正）.jpg}
+\caption{小推车轨迹（无零速修正）}
+\end{figure}
+在这幅图中小推车的轨迹不断飘移，从原点开始一直向西北向运动多达六千多米，显然与实际不符，推小推车绕圈的痕迹也完全无法从图中看出。
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{小推车高程曲线（无零速修正）.jpg}
+\caption{小推车高程曲线（无零速修正）}
+\end{figure}
+高程曲线也同样与实际偏差巨大，高程随时间几乎呈指数趋势增长，在实验的差不多半小时时长内高程飙升到了堪比世界之巅珠峰一般的八千多米。
+
+之后，用加上零速修正后的数据进行绘图呈现
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{小推车轨迹（零速修正）.jpg}
+\caption{小推车轨迹（零速修正）}
+\end{figure}
+从图中能较完整地看出前两圈的大致轨迹，即使我们是用了别的小组的数据并没有实际参与他们推车实验的过程，但从图中也能够看出他们组推的路线是一个沿东北-西南方向的斜八字。图中也可以看到轨迹一点一点向西北方向飘移，但每一圈的轨迹也都能大致判断出来。
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{小推车轨迹（零速修正）2.jpg}
+\caption{小推车轨迹（零速修正）（前几圈）}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{小推车高程曲线（零速修正）.jpg}
+\caption{小推车高程曲线（零速修正）}
+\end{figure}
+从高程曲线中就更能看出来，小推车加入零速修正算法后，高程在几个时刻明显增长变得平缓，说明零速修正很好地起到了抑制误差累计的作用。
+
+最后，将有无零速修正算法解算出的小推车数据与GNSS真值的数据作差比较，作图。
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{小推车数据位置误差曲线.jpg}
+\caption{小推车数据位置误差曲线}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{小推车数据速度误差曲线.jpg}
+\caption{小推车数据速度误差曲线}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{小推车数据姿态误差曲线.jpg}
+\caption{小推车数据姿态误差曲线}
+\end{figure}
+可见在零速修正后，位置与速度与真值的差异均大大减小。其中在速度误差图中明显可见有零速修正后，在某些时刻增长的速度有断崖式的下滑，整个曲线呈阶梯状，说明零速修正起到的强行赋予真值，修正累计误差的作用。
+
+零速修正后的姿态误差与没修正之前相比略微大些，推测是由于强行给速度赋零值，导致姿态更新损失了一些精度。
+\section{感想与心得}
+\subsection{对思考题的回答}
+\begin{enumerate}[(1)]
+\item 为什么用示例数据对比的差异很小而小推车的纯惯导误差却大很多？
+
+应该是由于示例数据是在车载测试条件下进行的，会有较大的速度，加速度的变化量，对于惯导来说，噪声对加速度计和陀螺仪的影响较小，所以推算出的结果飘移不大。而小推车由人力来推动，很难获得较大的加速度，导致受到噪声影响较大。
+\item 尝试分析为什么纯惯导的高程误差累积速度比平面快？
+
+与（1）的原因应该类似。由于小推车在地平面上运动，所以在东向与北向都能有一定的加速度输出，而垂向受到噪声影响较大。故高程累计误差较大。
+\item 从数据融合的角度，如何更合理地使用零速修正信息？
+
+可以同时在惯导设备上加装GNSS装置进行定位，当载体位置几乎不变或速度长时间在0值波动时，强制给惯导解算的速度赋0值，进行零速修正
+\end{enumerate}
+\subsection{感想与心得}
+
+经过此次纯惯导解算编程实现，收获了很多。首先是自己编程能力的一个巩固和提升，在以前实现矩阵运算的时候基本上依赖的是MATLAB，也是在这学期开始才在C++中用函数和数组的方式实现一些矩阵的运算。但MATLAB毕竟是别人的软件，有一定的局限性，并且每次在用MATLAB时，都要花大量的时间熟悉一遍它的语法，并且每次用完后又迅速忘掉。既然这样，还不如干脆用C++去实现，在C++上把编程能力练到比较精通，总比在两种语言都学得半生不熟强。于是，我开始先用差不多一周的时间编写矩阵类和向量类。这也是第一次我真正用到了类的强大功能实现的程序，借此机会，又对C++的类与对象，继承与派生，运算符重载，友元等特性有了初步认识。
+
+然后是对程序实现中出现的问题的一些感受。在对示例数据的解算过程中，发现我的解算结果一开始是与参考结果相差无异，但越往后，误差越大，到最后我的解算高程会飘到600多米，与参考结果差了400多米。一直不断反复检查我的公式实现，但一直没有找到问题。也与已经成功实现的舍友对过中间结果，但是对第一个历元的数据，结果都是相差不大，而惯导的误差又是会随时间一点一点的放大的，导致我无法知道某个值的差异是可以允许的，还是它就是会导致最终结果超限的问题所在。而且整个程序又是固连的，姿态和速度和位置息息相关，不知道是哪个结果影响了哪个，只能全部一起检查。最后大约是花了一天半的时间，在一天的晚上凌晨12点整，我发现我的经纬度变化比示例参考结果明显要慢很多，最后仔细检查下，发现位置更新公式中的经纬度是用的弧度，而我的是用度来表示的，我直接把弧度变化量加到了度上，导致出错。修改后，果然程序算出了正确结果。这也提醒我，以后对惯导这种误差会逐渐放大的事物进行编程解算时，对公式的每一步都要小心谨慎处理，特别是弧度角度这种非常经典但真的很容易弄错的地方，否则的话一旦程序出bug，将无从下手寻找。
+
+还有就是对惯导的一些认识和感想。推导公式时，我们都已经做了非常多的工作来确保推算结果具有一定的精度，采样率也是做到了非常高，就是为了尽可能消除误差。然而这样的结果确是不做零速修正的话连小推车一圈的轨迹都看不出来，看来纯惯导解算下
+导航的精度很难保证。
+\end{document}
+

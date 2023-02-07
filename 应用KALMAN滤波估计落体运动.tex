@@ -1,0 +1,129 @@
+\documentclass{ctexart}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage[colorlinks=true,allcolors=red]{hyperref}%插入代码也需要此行
+\usepackage{bm}
+\usepackage{float}
+\usepackage{enumerate}
+\usepackage{listings}%插入关键字高亮的代码
+\lstset{basicstyle=\small,
+basicstyle=\tt,
+keywordstyle=\color{blue},
+commentstyle=\color{green},
+frame=shadowbox,
+numbers=left,
+numberstyle=\tiny\color{red},
+columns=flexible,}
+\begin{document}
+\begin{center}
+\thispagestyle{empty}
+\Large\textbf{应用KALMAN滤波估计落体运动}
+\end{center}
+\vfill
+\begin{table}[h]
+    \centering
+    \large
+    \begin{tabular}{cc}
+    \textbf{课程名称:} & 组合导航 \\ \cline{2-2}
+    \textbf{班级:} & 导航工程3班 \\ \cline{2-2}
+    \textbf{姓名:} & 叶通 \\  \cline{2-2}
+    \textbf{学号:} & 2020302142138 \\ \cline{2-2}
+    \textbf{时间:} & \today \\ \cline{2-2}
+    \end{tabular}
+\end{table}
+
+\newpage
+\large\textbf{问题描述：假设有一物体从坐标原点0处，受到加速度为$g=10m/s^2$,以初速度为0做落体运动，运动过程中受到阻力为$f=k\cdot v$,其中阻力系数$k=0.1$,假设原点处有一测速仪每秒输出落体的速度，利用测速仪和此运动模型估计落体的速度和位置}
+
+\vspace{2cm}
+设物体的二维状态为位置和速度$\left[\begin{array}{c}r(t)\\v(t)\end{array}\right]$，物体的运动状态可以描述为
+\begin{equation*}
+\begin{bmatrix}
+\dot{r}(t)\\
+\dot{v}(t)\end{bmatrix}=\begin{bmatrix}
+0&1\\
+0&-0.1
+\end{bmatrix}\begin{bmatrix}
+r(t)\\
+v(t)
+\end{bmatrix}+\begin{bmatrix}
+0\\
+1
+\end{bmatrix}g+\begin{bmatrix}
+0\\
+1
+\end{bmatrix}e(t)
+\end{equation*}
+
+观测方程可以描述为
+\begin{equation*}
+Z(t)=\begin{bmatrix}
+0&1
+\end{bmatrix}\begin{bmatrix}
+r(t)\\
+v(t)
+\end{bmatrix}+\Delta(t)
+\end{equation*}
+\vspace{1cm}
+设初始状态的协方差阵$\bm{P}$为$\left[\begin{array}{cc}
+5&0\\
+0&5
+\end{array}\right]$,过程噪声矩阵\textbf{Q}=$\left[\begin{array}{cc}
+1&1\\
+1&1
+\end{array}\right]$,观测噪声矩阵\textbf{R}为[4]。求解微分方程可以解得状态转移矩阵
+\begin{equation*}
+\bm{\varPhi}=e^{\bm{A}t}=\begin{bmatrix}
+  1&0.95162581\\
+  0&0.90483741
+\end{bmatrix}
+\end{equation*}
+再以此求解输入增益矩阵\textbf{B}。
+
+\vspace{2cm}
+根据运动学方程可以写出
+\begin{equation*}
+\dfrac{dv}{dt}=10-0.1v
+\end{equation*}
+移项后对两边同时积分后得
+\begin{equation*}
+-10ln(10-0.1v)+10ln(10)=t
+\end{equation*}
+
+以此为真实的物体运动速度随时间的变化规律，每秒取离散的时间，计算1-50秒的速度作为物体运动速度的真实值，用Matlab函数将真实值上加上正态分布随机数作为数据观测值序列。再将上述定义好的变量和观测值调用给出的Matlab开源函数实现每秒对落体速度的估计。部分代码示意如下。
+\begin{lstlisting}[language=Matlab]
+for i=1:1:50
+    [X_pred,P_pred]=kf_predict(X,P,A,Q,B,U);
+    [X,P,K,IM,IS,LH]=kf_update(X_pred,P_pred,Y(i),H,R);
+end
+\end{lstlisting}
+\newpage
+将每次输出结果保存，画出运动速度的真值曲线，观测曲线，卡尔曼滤波平滑后曲线有
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{落体运动速度曲线.jpg}
+\caption{落体运动速度曲线}
+\end{figure}
+
+可以看到经过Kalman滤波平滑后的速度处于理论值与观测值之间，对观测值进行了修正。
+\newpage
+作出速度的方差曲线如下
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{速度方差曲线.jpg}
+\caption{速度方差曲线}
+\end{figure}
+
+速度的方差可以迅速收敛为较小的值，对速度的估计比较准确。
+\newpage
+作出位置方差曲线如下
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{位置方差曲线.jpg}
+\caption{位置方差曲线}
+\end{figure}
+
+发现位置的方差并没有收敛，而是呈随时间线性增大。这里经过多次调整$\bm{Q}$阵，$\bm{P}$阵和$\bm{R}$阵，作图后发现只是其增大的速度有所改变，结果依然未收敛，最后也只能对未收敛的原因作一些猜测。
+\begin{enumerate}[(1)]
+\item $\bm{Q}$阵依旧不太合理。由于这里$\bm{Q}$阵并没有按正常步骤由状态转移矩阵和噪声矩阵等经过积分求出，而是直接给出的，会与理想的问题假设有所差异。
+\item 由问题假设本身决定。由于位置是由于上一时刻位置和速度二者共同决定，故方差也受二者的影响，相当于二者的叠加，导致难以收敛。
+\item 由于问题假设中只对状态量之一的速度进行了观测，所以缺少观测值约束的位置量会一直发散。
+\end{enumerate}
+\end{document}

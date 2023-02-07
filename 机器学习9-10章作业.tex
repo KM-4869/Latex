@@ -1,0 +1,143 @@
+\documentclass{ctexart}
+
+\usepackage{enumerate}
+\usepackage{amsmath}%bmatrix矩阵
+\usepackage{tabularray}%表格
+\usepackage{float}%浮动环境
+\usepackage{graphicx}%图像
+\usepackage{bm}
+\usepackage{geometry}
+\usepackage{booktabs}%三条表格划线命令
+
+\geometry{a4paper,scale=0.8}
+\begin{document}
+
+\section*{第9章、第10章《神经网络》、《深度学习》习题}
+\subsection*{一、请根据下列Tensorflow提供的一个神经网络学习网页，及网页中给出的一个二分类网络模型，回答：}
+\begin{enumerate}[(1)]
+\item 解释1-8的名词的含义
+\item 计算该二分类神经网络的参数数量
+\end{enumerate}
+
+\begin{figure}[H]
+\centerline{\includegraphics[height=10cm,width=0.9\linewidth]{图一.jpg}}
+\caption{神经网络学习网页}
+\end{figure}
+
+(1)
+\begin{itemize}
+\item 样本划分\\
+指用于训练和测试的数据的比列
+\item 批量大小\\
+指每次进行学习迭代的数据集大小
+\item 训练轮数\\
+指从开始时刻到此时一共进行的参数训练次数
+\item 学习率\\
+指每次进行训练的步长大小
+\item 激活函数\\
+实现输入信号到输出信号的非线性转变的函数
+\item 正则化\\
+用于避免模型过拟合而进行的一些限制策略
+\item 正则化系数\\
+一种调整经验误差项与正则化项之间关系的系数
+\item 训练误差与测试误差\\
+模型在训练集上产生的误差和模型在测试集上产生的误差
+\end{itemize}
+(2)
+\begin{equation*}
+2\times7+5\times7\times7=259
+\end{equation*}
+
+
+\subsection*{名词解释}
+\begin{enumerate}[(1)]
+\item 早停法（Early stopping）\\
+将数据分成训练集和验证集。训练集用来计算梯度、更新连接权和阈值。验证集用来估计误差。若训练集误差降低但验证集误差升高，则停止训练；同时返回具有最小验证集误差的参数
+\item 暂退法（Dropout）\\
+以一定概率“灭活”一部分神经元.
+\item 梯度弥散\\
+如果各神经元激活函数导数<1，则随着反向传播，靠前隐层神经元的误差信号会越来越小，发生梯度弥散
+\end{enumerate}
+\vfill
+\subsection*{针对下列神经网络，神经元激活函数为Tanh( )函数，损失函数采用平方误差函数（前带1/2系数），学习率$\eta=0.5$，试做一次迭代}
+
+\begin{enumerate}[(1)]
+\item 计算h1、h2、o1、o2的误差信号$\sigma$
+\item 更新参数w4、w8和$w_0^{(1)}$
+\end{enumerate}
+
+\begin{figure}[H]
+\centerline{\includegraphics[height=10cm,width=0.9\linewidth]{图二.png}}
+\caption{神经网络示意图}
+\end{figure}
+
+(1)\\
+先前向计算出各节点的输出值：
+\begin{align*}
+net_{h1}=0.3775&&net_{h2}=0.3925\\
+out_{h1}=0.3605&&out_{h2}=0.3735\\
+net_{o1}=0.9122&&net_{o2}=0.9856\\
+out_{o1}=0.7222&&out_{o2}=0.7555\\
+\end{align*}
+计算节点信号误差
+\begin{gather*}
+\sigma_{o1}=\dfrac{\partial L_{o1}}{\partial out_{o1}}\dfrac{\partial out_{o1}}{\partial net_{o1}}=(0.7222-0.01)\times tanh^{'}(0.9122)=0.3407\\
+\sigma_{o2}=\dfrac{\partial L_{o2}}{\partial out_{o2}}\dfrac{\partial out_{o2}}{\partial net_{o2}}=(0.7555-0.99)\times tanh^{'}(0.9856)=-0.1006\\
+\sigma_{h1}=(0.4\times\sigma_{o1}+0.45\times\sigma_{o2})\dfrac{\partial out_{h1}}{\partial net_{h1}}=0.091\times tanh^{'}(0.3775)=0.0791\\
+\sigma_{h2}=(0.5\times\sigma_{o1}+0.55\times\sigma_{o2})\dfrac{\partial out_{h2}}{\partial net_{h2}}=0.1150\times tanh^{'}(0.3925)=0.0989
+\end{gather*}
+(2)\\
+更新参数\\
+\begin{gather*}
+w_4=w_4-\eta\cdot \sigma_{h2} \cdot x_{i2}=0.3-0.5\times0.0989\times0.1=0.2950\\
+w_8=w_8-\eta\cdot \sigma_{o2} \cdot out_{h2}=0.55-0.5\times-0.1006\times0.3735=0.5687\\
+w_0^{(1)}=w_0^{(1)}-\eta(\sigma_{h1}+\sigma_{h2})=0.35-0.5\times(0.0791+0.0989)= 0.261
+\end{gather*}
+
+\subsection*{简述采用批量梯度下降（BGD）的BP神经网络的训练步骤}
+
+批量梯度下降法依然是先所有的样本前向计算出各个节点的输出，然后计算在总体上的损失，然后以此为损失函数对参数求偏导，即每个输出节点对参数求偏导然后取平均，作为一次迭代的梯度。此方法可以更好的代表总体，能准确地朝极值方向前进。
+
+\subsection*{对于一个10分类神经网络，输出层采用Softmax层。样本x对应的标记y为[ 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 $]^T$，网络前向传播一次得到的输出为$\bm{c}$：[ 0.2, 0.1, 0, 0, 0, 0.4, 0, 0.15, 0.15, 0 $]^T$，试计算：}
+
+（1）交叉熵损失为多少？\\
+
+\begin{equation*}
+Loss=-1\times log_20.4= 1.321
+\end{equation*}
+
+
+（2）若前一隐层某神经元○h的输出信号为0.128，h与输出层10个神经元的连接权重向量为$W=[0.1,-0.1,0.2,-0.2,0.3,-0.3,0.4,-0.4,0.5,-0.5]^T$，取学习率$\eta$=0.1，请更新该权重向量\\
+
+由多分类softmax层的误差信号推导结果可知，输出层每个节点的误差信号等于其预测值减标记值。即：
+\begin{equation*}
+\bm{\sigma}=\bm{c}-\bm{y}=\begin{bmatrix}
+ 0.2\\0.1\\0\\0\\0\\-0.6\\0\\0.15\\0.15\\0
+\end{bmatrix}
+\end{equation*}
+
+参数更新规则为：
+\begin{equation*}
+\bm{w}=\bm{w}-\eta\cdot\bm{\sigma}\cdot out_h=\begin{bmatrix}
+0.0872\\-0.1064\\0.2000\\-0.2000\\0.3000\\-0.2616\\0.4000\\-0.4096\\	0.4904\\-0.5000\\
+\end{bmatrix}
+\end{equation*}
+
+\subsection*{一个卷积神经网络的输入为32x32x3的图像，第一个隐藏层卷积核大小为5x5，共10个卷积核。请问这一层总共含有多少参数（含偏置参数）？}
+
+
+参数个数为：
+\begin{equation*}
+(5\times5+1)\times10\times3=780
+\end{equation*}
+
+
+
+
+
+
+
+
+
+
+\end{document}

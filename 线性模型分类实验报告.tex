@@ -1,0 +1,289 @@
+\documentclass{ctexart}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,allcolors=red]{hyperref}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{tabularray}%表格
+\usepackage{listings}%插入关键字高亮的代码
+\usepackage{nicematrix}
+\usepackage{multirow}%\multicolumn{3}{c}{\multirow{3}{*}{\large $R_{3\times3}$}}  \multicolumn{要合并的列数}{对齐方式}{内容}  \multirow{要合并的行数}{*默认}{内容}
+\usepackage{geometry}
+\usepackage{pythonhighlight}
+\usepackage{booktabs}
+
+
+\geometry{a4paper,scale=0.7}
+
+\lstset{basicstyle=\small,
+basicstyle=\tt,
+keywordstyle=\color{blue},
+commentstyle=\color{green},
+frame=shadowbox,
+numbers=left,
+numberstyle=\tiny\color{red},
+columns=flexible,}
+\begin{document}
+\newpage
+\thispagestyle{empty}
+%\vspace*{\fill}
+    \begin{center}
+        \Huge\textbf{机器学习线性模型分类实验报告}
+    \end{center}
+\vspace*{\fill}
+
+\begin{table}[h]
+    \centering
+    \Large
+    \begin{tabular}{cc}
+    \textbf{学院:} & 测绘学院 \\ \cline{2-2}
+    \textbf{专业:} & 导航工程 \\ \cline{2-2}
+    \textbf{姓名:} & 叶通 \\  \cline{2-2}
+    \textbf{学号:} & 2020302142138 \\ \cline{2-2}
+    \textbf{教师:} & 郭迟 \\ \cline{2-2}
+    \textbf{时间:} & 2023年1月22日 \\ \cline{2-2}
+    \end{tabular}
+\end{table}
+
+\newpage
+\pagenumbering{Roman}
+\setcounter{page}{1}
+\tableofcontents
+
+\newpage
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\section{实验要求与内容}
+\subsection{实验内容}
+掌握基于Python语言，完成三个分类器（逻辑回归、支持向量机、线性判别分析）的使用，掌握对数几率回归LR、线性判别分析LDA以及支持向量机SVM的模型设计思想、学习策略、优化方法，要认真学习、对比并完成实验，提交报告。
+\subsection{实验要求}
+\begin{enumerate}[(1)]
+\item 掌握sklearn库的使用
+\item 对数据集进行可视化，选取交叉验证或者留一法对数据集进行划分，并在实验报告中阐明具体的划分方法和代码
+\item 利用训练集分别采用逻辑回归、支持向量机、线性判别分析、方法，对分类器进行训练
+\item 输出各分类器的对应参数，对各分类器的决策边界分别在训练集和测试集上进行可视化输出
+\item 计算并输出各分类器的混淆矩阵及查准率、查全率
+\item 对各分类器绘制PR和ROC曲线
+\end{enumerate}
+
+
+\section{编程实现过程}
+\subsection{数据集准备及划分}
+按给定范例的方法和参数使用make classification函数生成含300个样本的数据集。
+代码如下：
+\begin{python}
+X, y = make_classification(n_samples=300, 
+n_features=2, n_informative=2, n_redundant=0, n_repeated=0, 
+n_classes=2, n_clusters_per_class=1, random_state=4)  # 设定数据集
+\end{python}
+\vfill
+再使用K折交叉验证法，将所有样本化为5份，每次以4份作为训练集，剩下一份作为测试集，通过循环进行三个模型的训练并对模型的各项指标进行输出和评估。具体代码如下：
+\begin{python}
+ # 设置交叉验证划分次数，是否洗牌
+skf = sklearn.model_selection.KFold(n_splits=5, shuffle=True, random_state=None) 
+
+ # 对数据集进行交叉验证并返回训练集和验证集的索引值
+for train_index, test_index in skf.split(X, y): 
+
+    X_train, X_test = X[train_index], X[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+\end{python}
+\vfill
+\subsection{三种分类模型训练}
+在k折交叉验证的循环下，用每次划分的训练集对模型进行拟合训练，然后以验证集的数据带入模型中让所得预测结果与验证集的真实标签进行比较，计算出模型的正确率，查准率，查全率等指标并打印出报告。
+
+\begin{python}
+    # 用逻辑回归训练模型
+    logistic_clf = LogisticRegression()
+    logistic_model = logistic_clf.fit(X_train, y_train)
+    logistic_y_pred = logistic_model.predict(X_test)
+    # 用LDA训练模型
+    LDA_clf = LinearDiscriminantAnalysis()
+    LDA_model = LDA_clf.fit(X_train, y_train)
+    LDA_y_pred = LDA_model.predict(X_test)
+    # 用支持向量机训练模型
+    SVC_clf = LinearSVC()
+    SVC_model = SVC_clf.fit(X_train, y_train)
+    SVC_y_pred = SVC_model.predict(X_test)
+
+    # 打印报告并获取每次的正确率，对k次求平均
+    cla_name = ['0', '1']
+    print(classification_report(y_test, logistic_y_pred, target_names=cla_name))
+    print(classification_report(y_test, LDA_y_pred, target_names=cla_name))
+    print(classification_report(y_test, SVC_y_pred, target_names=cla_name))
+\end{python}
+
+\subsection{分类结果可视化}
+在经过k折交叉验证，得到分类器的各项性能指标后，再在总体全部训练集上进行训练得到一个最终模型并进行分类结果的作图。
+\begin{python}
+# 在数据全集上训练模型
+logistic_clf = LogisticRegression()
+logistic_model = logistic_clf.fit(X, y)
+logistic_y_pred = logistic_model.predict(X)
+print(confusion_matrix(y, logistic_y_pred))  # 打印混淆矩阵
+
+LDA_clf = LinearDiscriminantAnalysis()
+LDA_model = LDA_clf.fit(X, y)
+LDA_y_pred=LDA_model.predict(X)
+print(confusion_matrix(y, LDA_y_pred))  # 打印混淆矩阵
+
+SVC_clf = LinearSVC()
+SVC_model = SVC_clf.fit(X, y)
+SVC_y_pred=SVC_model.predict(X)
+print(confusion_matrix(y, SVC_y_pred))  # 打印混淆矩阵
+
+plot_data(X, y)   # 画出数据点图
+plot_decision_boundary(logistic_model, ax=None)  # 画出分类决策界
+plot_decision_boundary(LDA_model, ax=None)  # 画出分类决策界
+plot_decision_boundary(SVC_model, ax=None)  # 画出分类决策界
+plt.show()
+\end{python}
+
+\subsection{绘制ROC曲线与PR曲线}
+再获得最终分类模型和分类结果后，调用ROC曲线与PR曲线作图函数，作出曲线图评估比较三种分类器性能。
+\begin{python}
+# 整个数据集上的ROC曲线
+plot_roc_curve(logistic_model, X, y)
+plt.show()
+plot_roc_curve(LDA_model, X, y)
+plt.show()
+plot_roc_curve(SVC_model, X, y)
+plt.show()
+# 整个数据集上的PR曲线
+plot_precision_recall_curve(logistic_model, X, y)
+plt.show()
+plot_precision_recall_curve(LDA_model, X, y)
+plt.show()
+plot_precision_recall_curve(SVC_model, X, y)
+plt.show()
+\end{python}
+
+\section{模型实验结果对比分析}
+
+最终通过三个plot函数，将三条分类决策界绘制在一张图上呈现，分类结果展示如下：
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{分类结果.png}
+\caption{分类结果}
+\end{figure}
+
+其中绿线为逻辑回归分类决策界，红线为LDA分类决策界，紫线为SVC分类决策界。
+三者的特征系数与截距分别为：
+
+LR——特征系数 : [[ 2.89459981 -1.07792943]]
+截距 : [-0.04903319]
+
+LDA——特征系数 : [[ 2.80731317 -0.65994503]]
+截距 : [-0.46335005]
+
+SVC——特征系数 : [[ 1.00745053 -0.41781571]]
+截距 : [-0.07533617]
+\vfill
+直观从图中观察，LDA的分类决策界直线的斜率较其他两个分类器稍大，导致其左边将一小部分的正例判断错误。而另外两个分类器的分类决策界比较相似，对数据正负例的判定也较为准确。
+ 
+通过对模型的交叉验证，统计计算每次模型的查准率，查全率和正确率，并求取平均后绘制成下表：
+\begin{table}[h]
+	\centering
+	\begin{tabular}{c|ccc}
+	\toprule
+	&Precision&Recall&Accuracy\\
+	\midrule
+	LR&0.958&0.858&0.908\\
+	\midrule
+	LDA&0.970&0.824&0.894\\
+	\midrule
+	SVC&0.972&0.858&0.914\\
+	\bottomrule[1.2pt]
+	\end{tabular}
+	\caption{三种模型的分类性能比较}
+\end{table}
+
+从表中可知，SVC模型的三项指标均非常高，模型分类性能表现最好；LR模型则次之；LDA模型虽然有较高的查准率，但查全率与正确率都偏低，分类性能不如其余两者。
+
+下面输出求得的混淆矩阵：
+\begin{table}[H]
+	\large
+	\centering
+	\begin{tabular}{c|c|c}
+	\hline
+	\multirow{2}{*}{预测结果}&\multicolumn{2}{c}{真实标签}\\ \cline{2-3}
+	&正例&反例\\
+	\hline
+	正例&146&5\\
+	\hline
+	反例&21&128\\
+	\hline
+	\end{tabular}
+	\caption{LR混淆矩阵}
+\end{table}
+
+\begin{table}[H]
+	\large
+	\centering
+	\begin{tabular}{c|c|c}
+	\hline
+	\multirow{2}{*}{预测结果}&\multicolumn{2}{c}{真实标签}\\ \cline{2-3}
+	&正例&反例\\
+	\hline
+	正例&147&4\\
+	\hline
+	反例&26&123\\
+	\hline
+	\end{tabular}
+	\caption{LDA混淆矩阵}
+\end{table}
+
+\begin{table}[H]
+	\large
+	\centering
+	\begin{tabular}{c|c|c}
+	\hline
+	\multirow{2}{*}{预测结果}&\multicolumn{2}{c}{真实标签}\\ \cline{2-3}
+	&正例&反例\\
+	\hline
+	正例&147&4\\
+	\hline
+	反例&22&127\\
+	\hline
+	\end{tabular}
+	\caption{SVC混淆矩阵}
+\end{table}
+可以看出三个模型的差异其实不大，错分的样本都是在个位数上的差异，LR与SVC对样本的预测结果几乎一致，LDA比二者多判错了几个正例样本。
+
+
+通过作图函数可以得到三种模型的ROC曲线与PR曲线如下：
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{逻辑回归ROC.png}
+\caption{逻辑回归ROC曲线}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{LDAROC.png}
+\caption{LDA分类器ROC曲线}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{SVCROC.png}
+\caption{SVC分类器ROC曲线}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{逻辑回归PR.png}
+\caption{逻辑回归PR曲线}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{LDAPR.png}
+\caption{LDA分类器PR曲线}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{SVCPR.png}
+\caption{SVC分类器PR曲线}
+\end{figure}
+
+三者的POC曲线和PR曲线的差异较小，所包围的面积也都几乎一致，并较为饱满，说明三者都能较好的完成了分类任务。
+
+
+
+\end{document}

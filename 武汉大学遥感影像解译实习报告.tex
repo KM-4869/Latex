@@ -1,0 +1,158 @@
+\documentclass{ctexart}
+\usepackage[colorlinks=true,allcolors=red]{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{enumerate}
+\usepackage{array}
+\usepackage{makecell}%在tabular环境中使用，控制单元格内水平垂直对齐方式并手动换行。语法：\makecell[c/l/r]{第一行//第二行//第三行}。*[c/l/r]同时垂直居中
+\usepackage{geometry}
+\geometry{a4paper,scale=0.7}
+\begin{document}
+\thispagestyle{empty}
+\begin{center}
+	\huge\textbf{武汉大学遥感影像解译实习报告}
+\end{center}
+\vfill
+
+\begin{table}[h]
+	\centering
+	\Large
+	\begin{tabular}{cc}
+	\textbf{课程名称:}&航空航天成像与解译\\ \cline{2-2}
+	\textbf{班级:}&导航三班\\ \cline{2-2}
+	\textbf{姓名:}&叶通\\ \cline{2-2}
+	\textbf{学号:}&2020302142138\\ \cline{2-2}
+	\textbf{时间:}&2023年1月4日\\ \cline{2-2}
+	\end{tabular}
+\end{table}
+
+\newpage
+\pagenumbering{Roman}
+\setcounter{page}{1}
+\tableofcontents
+
+
+\newpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\section{实习要求}
+\begin{enumerate}[(1)]
+\item 采用目视解译方法对武汉大学范围内的典型地物（教学楼、居民楼、珞
+珈山、操场、湖、广场、道路、草地、山地、裸露地等）进行识别。
+\item 能使用 PS、ERDAS、ENVI、ArcGIS 等一个或多个软件进行可视化判读、
+目视识别、勾绘地物范围，最终形成解译成果图。
+\end{enumerate}
+\section{实习内容}
+\begin{enumerate}[(1)]
+\item 建立解译标志：根据解译标志和揭示标志，建立地物与图像之间的目标特征表。
+\item 内业判读解译典型地物，并通过软件勾绘各类地物边界。（室内解译成果图）
+\item 实地外业调查，并对内业解译结果进行修正、补绘等。（外业调绘解译成果图）
+\item 综合内外判读结果，并使用软件着色，形成解译成果图。（综合解译成果图）
+\end{enumerate}
+\section{解译方法}
+在目视解译中常用的解译方法有：
+\begin{enumerate}
+\item 直接判读法\\
+根据解译对象在影像中表现出来的形状和色彩等解译标志直接解译出目标
+类别。
+\item 对比分析法\\
+由于地物在不同时相、不同波段、不同传感器的影像中的表现形式不同（形
+状、色彩等解译标志的不同），可以通过比较分析这些影像解译出目标类别。
+\item 地理相关分析法\\
+通过地物之间的位置、大小、形状和邻接关系等信息解译目标。
+\end{enumerate}
+
+\section{解译准备}
+开始正式进行目视解译前，先进行相关内容的准备工作。对课件和教材上的相关知识点进行复习和巩固，加深对有关知识的理解。由于本人属于导航工程专业学生，对大一学习的测绘知识和方法都感到生疏了不少，大二后更是几乎没有用过有关软件进行绘图制图的工作，所以对有关软件的下载安装和操作都没有相应的经验。因此，为了节省时间，选择已经安装过的功能比较全面的Photoshop来完成本次实习任务。在开始绘图操作之前，先学习Photoshop的入门教程，掌握了一些基础的软件功能和使用方法，对一些例如“图层”，“选区”等专有概念进行了大致了解。
+\section{解译标志}
+根据影像特征，即形状、大小、阴影、色调、颜色、纹理、图案、位置和布
+局建立起影像和实地目标物之间的对应关系可得到地物目标特征表如下表。
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|c|}
+	\hline
+	\textbf{地物类型}&\textbf{地物色彩}&\textbf{影像特征}&\textbf{相关分析
+}\\
+	\hline
+	道路&灰色&线状连续物&\makecell*[c]{道路两侧通常有\\植被和建筑物分布,\\且道路之间互相连通}\\
+	\hline
+	水体&深色,墨色&\makecell*[c]{不规则形状，\\较周围地物颜色较深}&\makecell*[c]{周围通常多植被，\\人造建筑不会离的很近} \\
+	\hline
+	教学楼&亮灰色，白色&多为矩形，成片集中分布&\makecell*[c]{通常位于学部中心，\\周围道路较多，分布集中}\\
+	\hline
+	宿舍楼&灰色，白色&\makecell*[c]{多为矩形或\\锯齿多边形，分布广}&\makecell*[c]{数量多，范围大，分布广\\在学部中心边缘都有\\集中或零散分布}\\
+	\hline
+	操场&深红色加绿色&\makecell*[c]{椭圆形跑道\\外加中间矩形足球场}&\makecell*[c]{面积较大，通常\\每个学部都有一个}\\
+	\hline
+	\end{tabular}
+\end{table}
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|c|}
+	\hline
+	植被&墨绿色，深绿&较集中分布，形状不规则&\makecell*[c]{在远离教学区的地\\方通常集中大规模分布,人流\\密集区零散分布}\\
+	\hline
+	广场&白色，瓷色&形状分布较为对称&\makecell*[c]{占地面积较大,\\周围通常环绕教学楼}\\
+	\hline
+	山地&褐色，深绿色&\makecell*[c]{形状不规则，\\存在向阳面与背阳面色差}&\makecell*[c]{面积巨大，通常覆盖植被，\\建筑物环绕分布}\\
+	\hline
+	\end{tabular}
+\end{table}
+\section{室内预解译}
+新建一个图层并把背景转为纯白色作为底图层。导入提供的遥感影像作为中间图层，并调低它的透明度。再新建目视解译的绘图图层。以遥感影像为参考大致参考进行绘图。
+
+首先使用钢笔工具，选择“路径”模式，绘制武大外围轮廓以及主要道路。形成闭合路径后，右键选择“描边路径”,工具选默认“铅笔”，并事先将铅笔调整好合适的颜色和粗细。点击确定，钢笔所绘制的路径将被铅笔画出。同时用此方法绘制地物边缘。
+
+\begin{figure}[H]
+\includegraphics[height=6cm,width=1.0\linewidth]{绘图过程1.jpg}
+\caption{PS绘制地物边缘演示}
+\end{figure}
+
+之后依然使用钢笔工具，将所需上色的地物边缘绘出，再右键选择“填充路径”，选择合适的颜色点击确定。地物即可被填充上相应的颜色。
+
+\begin{figure}[H]
+\includegraphics[height=6cm,width=1.0\linewidth]{绘图过程2.jpg}
+\caption{PS填充地物颜色演示}
+\end{figure}
+
+主要的绘图方式就是以上两种。如果遇到大片相似的建筑，可以将选区的地物直接“ctrl+c”“ctrl+v”复制粘贴节省绘图时间。之后再将可见图层合并即可。此外，还可以使用“ctrl+t”或者右键选择自由变换命令自由调整选区内地物的大小位置朝向等等。
+\newpage
+经过长久的对照和绘图作画工作，绘制出了内业的解译图。
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{内业解译图.jpg}
+\caption{内业解译图}
+\end{figure}
+\newpage
+\section{外业调绘解译}
+由于疫情及学校政策影响，使用百度导航地图功能代替实地考察解译，对内业解译图进行修正与补充。打开软件，首先找到比较明显容易在地图上对应起来的地物，例如操场，湖泊等，然后沿旁边道路依此进行对照与比较，检查内业解译图的缺漏部分。
+
+之后使用椭圆绘制功能和文本框功能对图的缺漏部分进行标记和注释。最终绘出外业解译成果图。
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{外业调绘解译图.jpg}
+\caption{外业调绘解译图}
+\end{figure}
+\section{内外业综合解译}
+最终将标注和修正的图层隐藏，得到最终的内外业综合解译成果图。
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{内外业综合解译图.jpg}
+\caption{内外业综合解译图}
+\end{figure}
+
+\section{思考与心得}
+
+通过这次解译制图实习，首先是对目视解译的方法有了一个更深刻的了解和体会，对整个制图过程的步骤都亲自动手实现，有了更加全面的掌握。由于用的是PS，并不是专业的遥感解译地图绘制软件，导致画出的地物并不足够标准整齐符合地图的标准，有很多地方存在绘制上的偏差和瑕疵，连北向标志和图例也都是画上去而不是直接生成的，不过也还是将整个调绘解译过程完成了一遍。
+
+然后也借这次机会好好地把武大地图好好细看了一遍。虽然已经来了武大三年，但由于时间紧张和没有什么特别契机的原因，导致本人的活动区域一直集中在信息学部内，武大校内其他很多地方都没有去过，偶尔去校内某地有事还得借助导航，否则直接迷路。这次调绘实习也让我重新将一些去过或没去过的地点通过一张地图联系了起来，让我对武大内各地熟悉了一些，也是一次很有意义和收获的实习。
+
+
+
+
+
+
+
+
+
+
+
+\end{document}

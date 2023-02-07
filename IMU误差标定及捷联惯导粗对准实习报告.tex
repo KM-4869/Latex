@@ -1,0 +1,410 @@
+\documentclass{ctexart}
+\usepackage{graphicx}%加入图片宏包
+\usepackage[colorlinks=true,allcolors=red]{hyperref}%超链接（目录等）
+\usepackage{listings}%插入关键字高亮的代码
+\lstset{basicstyle=\small,
+basicstyle=\tt,
+keywordstyle=\color{blue},
+commentstyle=\color{green},
+numbers=left,
+numberstyle=\tiny\color{red},
+columns=flexible,}
+\usepackage{enumerate}%以自定义方式进行编号
+\usepackage{amsmath}%数学公式。加粗特殊符号
+\usepackage{float}%使用【H】防止浮动体浮动
+\usepackage{booktabs}
+
+\begin{document}
+\newpage
+\thispagestyle{empty}
+%\vspace*{\fill}
+    \begin{center}
+        \Huge\textbf{IMU误差标定及捷联惯导粗对准实习报告}
+    \end{center}
+\vspace*{\fill}
+
+\begin{table}[h]
+    \centering
+    \large
+    \begin{tabular}{cc}
+    \textbf{课程名称:} & 惯性导航原理 \\ \cline{2-2}
+    \textbf{班级:} & 导航工程3班 \\ \cline{2-2}
+    \textbf{姓名:} & 叶通 \\  \cline{2-2}
+    \textbf{学号:} & 2020302142138 \\ \cline{2-2}
+    \textbf{实验地点:}&武汉大学惯性导航实验室 \\ \cline{2-2}
+    \textbf{实验名称:}&IMU误差标定及捷联惯导粗对准实验\\ \cline{2-2}
+    \textbf{小组成员:}&周天晨,周沛,叶通，陶安博，李凯歌\\ \cline{2-2}
+    \textbf{指导老师:}&牛小骥,张万威\\ \cline{2-2}
+    \textbf{实验时间:}&2022年09月23日\\ \cline{2-2}
+    \textbf{时间:} &2022年10月8日 \\ \cline{2-2}
+    \end{tabular}
+\end{table}
+
+\newpage
+\pagenumbering{Roman}
+\setcounter{page}{1}
+\tableofcontents
+
+\newpage
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\section{IMU 误差标定实验}
+\subsection{实验目的}
+\begin{enumerate}[(1)]
+\item  掌握三轴加速度计的静态六位置标定方法，标定加速度计的零偏、比例因子误差和交轴耦合误差
+\item  掌握角位置法标定陀螺的零偏和比例因子误差标定方法
+\item 掌握高精度三轴转台的基本使用方法
+\end{enumerate}
+
+\subsection{实验仪器}
+\begin{enumerate}[(1)]
+\item  高精度三轴转台
+\item  待标定 IMU，型号：iMAR-FSAS。
+\end{enumerate}
+
+\subsection{实验原理}
+使用加速度计的静态六位置法对加速度进行标定，可以标定出加速度计的零偏，比例因子，交轴耦合误差。标定时将加速度计的三个轴线分别朝上朝下并静止一段时间。陀螺的标定采用角位置法，要求陀螺绕其三个轴线分别正转反转一定角度。
+\subsubsection{加速度计的六位置法标定原理}
+三轴加速度的测量模型如下：
+\begin{equation}
+\tilde{f^{b}}=f^{b}+b_{a}+S_{a}f^{b}+N_af^b+w_{a}
+\label{eq:1}
+\end{equation}
+
+式中$\tilde{f^{b}}$为加速度计测量值向量,$f^{b}$为加速度计理论应感知到的真实比力向量，$b_{a}$表示加速度零偏；$\mathbf{S_{a}}$为加速度计的比例因子误差矩阵,$\mathbf{N_{a}}$为加速度交轴耦合误差矩阵，$\pmb{\omega_{a}}$为加速度计随机噪声向量。%\tilde上波浪线 \mathbf加粗数学符号 \pmb加粗特殊符号
+
+比例因子矩阵记作
+\begin{equation}
+\mathbf{S_{a}}=\begin{bmatrix}
+S_{a,x}&0&0\\
+0&S_{a,y}&0\\
+0&0&S_{a,x}
+\end{bmatrix}
+\end{equation}
+交轴耦合矩阵记作
+\begin{equation}
+\mathbf{N_{a}}=\begin{bmatrix}
+0&\gamma_{a,yx}&\gamma_{a,zx}\\
+\gamma_{a,xy}&0&\gamma_{a,zy}\\
+\gamma_{a,xz}&\gamma_{a,yz}&0
+\end{bmatrix}
+\end{equation}
+%\begin{bmatrix}带[]分界符的矩阵
+在实际应用中，我们可以通过对加速度计的一段静态数据求平均来压制测量白噪声的幅
+度，使其影响小于或远小于零偏的幅度。在此情况下可省略式\eqref{eq:1}中的噪声项，并将方程改写成矩阵形式
+\begin{equation}
+\begin{bmatrix}
+\tilde{f_{x}}\\
+\tilde{f_{y}}\\
+\tilde{f_{z}}
+\end{bmatrix}=\begin{bmatrix}
+1+s_{a,x}&\gamma_{a,yx}&\gamma_{a,zx}&\mathbf{b}_{a,x}\\
+\gamma_{a,xy}&1+s_{a,y}&\gamma_{a,zy}&\mathbf{b}_{a,y}\\
+\gamma_{a,xz}&\gamma_{a,yz}&1+s_{a,z}&\mathbf{b}_{a,z}
+\end{bmatrix}\begin{bmatrix}
+f_x\\
+f_y\\
+f_z\\
+1\end{bmatrix}
+\end{equation}
+上式等号右边的矩阵包含了 12个待标定的加速度计误差参数，记为 M。为求解 M，分别让 x、y、z 轴加速度计朝上和朝下静置，共采集六个位置的静态数据,得到18个方程。将他们合并写作分块矩阵可得
+\begin{equation}
+\begin{bmatrix}
+\tilde{f_{1}}&\tilde{f_{2}}&\tilde{f_{3}}&\tilde{f_{4}}&\tilde{f_{5}}&\tilde{f_{6}}
+\end{bmatrix}=\begin{bmatrix}
+1+s_{a,x}&\gamma_{a,yx}&\gamma_{a,zx}&\mathbf{b}_{a,x}\\
+\gamma_{a,xy}&1+s_{a,y}&\gamma_{a,zy}&\mathbf{b}_{a,y}\\
+\gamma_{a,xz}&\gamma_{a,yz}&1+s_{a,z}&\mathbf{b}_{a,z}
+\end{bmatrix}\begin{bmatrix}
+\mathbf{f_1}&\mathbf{f_2}&\mathbf{f_3}&\mathbf{f_4}&\mathbf{f_5}&\mathbf{f_6}\\
+1&1&1&1&1&1
+\label{eq:5}
+\end{bmatrix}
+\end{equation}
+将上式记作
+\begin{equation}
+\mathbf{L}=\mathbf{MA}
+\end{equation}
+可由最小二乘的原理求解出待估参数矩阵
+\begin{equation}
+\hat{\mathbf{M}}=\mathbf{LA}^{T}\left(\mathbf{AA}^{T}\right)^{-1}
+\label{eq:7}
+\end{equation}
+
+\subsubsection{陀螺的零偏和比例因子误差标定原理}
+将陀螺的一轴与铅垂轴重合朝上放置，控制转台正转一个角度$\alpha$(通常为360°的整数倍)，随后反转相同角度。在该情况下，陀螺感知的角速度为转台的转动
+角速度和地球自转角速度在垂向的投影分量。因此，可以写出这两种情况下、陀螺的测量模型（此处已忽略陀螺白噪声）。
+\begin{equation}
+\tilde{\alpha}_{1}=b_{g}t+\left(1+s_{g}\right)\alpha+\left(\omega_{e}sin\phi\right)t
+\label{eq:8}
+\end{equation}
+\begin{equation}
+\tilde{\alpha}_{2}=b_{g}t-\left(1+s_{g}\right)\alpha+\left(\omega_{e}sin\phi\right)t
+\label{eq:9}
+\end{equation}
+其中$b_{g}$为零偏，单位应为弧度每秒，$s_{g}$为比例因子误差，并且忽略了地球自转对比例因子误差的影响。由此可计算零偏与比例因子。
+\begin{equation}
+b_{g}=\frac{\tilde{\alpha}_1+\tilde{\alpha}_2}{2t}-\omega_esin\phi
+\label{eq:10}
+\end{equation}
+\begin{equation}
+s_g=\frac{\tilde{\alpha}_1-\tilde{\alpha}_2}{2\alpha}-1
+\label{eq:11}
+\end{equation}
+
+\subsection{ 实验步骤及方法}
+\begin{enumerate}[(1)]
+\item 事先设计转台的转动顺序。
+\item 操作转台，按预定顺序转动采集数据。并时刻注意IMU是否转到预定姿势和朝向。
+\item 将数据进行解码和格式转换。
+\item 编程实现计算加速度计和陀螺零偏，比例因子和交轴耦合误差。
+\end{enumerate}
+\subsection{编程实现}
+\subsubsection{加速度计数据提取}
+具体思路是用自己写的StringSplit()函数将数据按“，”分隔然后转成double形，进行累加再取平均后，可换成同一单位，得到一组一轴朝上时的加速度计真实感知向量。
+打开六个文件重复上述步骤，即可得到六组加速度计真实输出。部分代码如下
+\begin{lstlisting}[language=C]
+/*******************************************************************
+	
+将观测数据取平均，获取真实的加速度计x轴朝上时加速度真实的三轴输出量
+
+********************************************************************/
+
+	while (!feof(fp))
+	{
+		char str[300] = " ";
+		char substr[12][100] = { "   " };
+		fgets(str, sizeof(str) - 1, fp);
+		StringSplit(str, ",", substr);
+		
+		acc_x_sum += strtod(substr[7],NULL);
+		acc_y_sum += strtod(substr[6], NULL);
+		acc_z_sum += strtod(substr[5], NULL);
+		sum++;
+
+	}
+
+	double f1_x = (acc_x_sum / sum) * acc_scale * 100;
+	double f1_y = (acc_y_sum / sum) * acc_scale * 100;
+	double f1_z = (acc_z_sum / sum) * acc_scale * 100;
+\end{lstlisting}
+\subsubsection{构造矩阵最小二乘求解}
+将上述提取出的加速度计数据与理论值按\eqref{eq:5}构造矩阵。并运用已写好的矩阵运算函数按式\eqref{eq:7}进行M矩阵求解。部分代码如下
+\begin{lstlisting}[language=C]
+      double L[18] = { f1_x,f2_x,f3_x,f4_x,f5_x,f6_x,
+                       f1_y,f2_y,f3_y,f4_y,f5_y,f6_y,
+                       f1_z,f2_z,f3_z,f4_z,f5_z,f6_z };
+	double A[24] = { g,-g,0,0,0,0,0,0,g,-g,0,0,0,0,0,0,g,-g,1,1,1,1,1,1};
+	double AT[24] = { 0 };
+	double LAT[12] = { 0 };
+	double AAT[16] = { 0 };
+	double AAT_1[16] = { 0 };
+	double M[12] = { 0 };
+	MatrixT(4, 6, A, AT);
+	MatrixMultiply(3, 6, 6, 4, L, AT, LAT);
+	MatrixMultiply(4, 6, 6, 4, A, AT, AAT);
+	Matrix_inv(4, AAT, AAT_1);
+	MatrixMultiply(3, 4, 4, 4, LAT, AAT_1,M);
+\end{lstlisting}
+\subsubsection{求解结果展示}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ccc}
+	\toprule[1.5pt]
+	$b_{a,x}$&$b_{a,y}$&$b_{a,z}$\\
+	\midrule
+	-0.012356&-0.002607&0.053202\\
+	\bottomrule[1.5pt]
+	\end{tabular}
+	\caption{加速度计三轴零偏}
+\end{table}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ccc}
+	\toprule[1.5pt]
+	$s_{a,x}$&$s_{a,y}$&$s_{a,z}$\\
+	\midrule
+	-0.000012&0.001507&0.000104\\
+	\bottomrule[1.5pt]
+	\end{tabular}
+	\caption{加速度计三轴比例因子}
+\end{table}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{cccccc}
+	\toprule[1pt]
+	$\gamma_{a,yx}$&$\gamma_{a,zx}$&$\gamma_{a,xy}$&$\gamma_{a,zy}$&$\gamma_{a,xz}$&$\gamma_{a,yz}$\\
+	\midrule
+	-0.002710&0.011897&-0.003167&0.000435&-0.009302&0.000764\\
+	\bottomrule[1.5pt]
+	\end{tabular}
+	\caption{加速度计交轴耦合误差}
+\end{table}
+
+\subsubsection{误差补偿成图}
+当M矩阵求出后，即得到了零偏矩阵，比例因子，交轴耦合矩阵，可按\eqref{eq:1}式反推得到更高精度数据。补偿与作图由MATLAB实现。
+\begin{lstlisting}[language=matlab]
+MC=cell(1,6);
+F={f1,f2,f3,f4,f5,f6};
+%对输出值进行补偿，将补偿后的值存入元胞数组
+for i=1:1:6
+    for j=1:1:size(f{i},1)
+        m=[f{i}(j,3);f{i}(j,2);f{i}(j,1)];
+        mc=M\(m-b);
+        MC{i}(j,1)=mc(3,1);
+        MC{i}(j,2)=mc(2,1);
+        MC{i}(j,3)=mc(1,1);
+    end
+end
+\end{lstlisting}
+成图如下
+\begin{figure}[H]
+\includegraphics[height=7cm,width=0.9\linewidth]{补偿后x_up.jpg}
+\caption{补偿后的x轴朝上数据成图}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=7cm,width=0.9\linewidth]{补偿后x_down.jpg}
+\caption{补偿后的x轴朝下数据成图}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=7cm,width=0.9\linewidth]{补偿后y_up.jpg}
+\caption{补偿后的y轴朝上数据成图}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=7cm,width=0.9\linewidth]{补偿后y_down.jpg}
+\caption{补偿后的y轴朝下数据成图}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=7cm,width=0.9\linewidth]{补偿后z_up.jpg}
+\caption{补偿后的z轴朝上数据成图}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=7cm,width=0.9\linewidth]{补偿后z_down.jpg}
+\caption{补偿后的z轴朝下数据成图}
+\end{figure}
+\subsubsection{陀螺数据提取}
+与加速度计过程相同。故不再详述。需要注意的是陀螺数据需要进行一定时间的截断，并且直接累加得旋转角度值，无需再乘采样率。
+\subsubsection{求解零偏与比例误差}
+将得到的结果直接按\eqref{eq:10}与\eqref{eq:11}求解
+\subsubsection{求解结果展示}
+\begin{table}[H]
+	\centering
+	\begin{tabular}{cccc}
+	\toprule[1.5pt]
+	$b_{g,x}$&$b_{g,z}$&$s_{g,x}$&$s_{g,z}$\\
+	\midrule
+	3.292688&-10.04436&0.01508&0.01279\\
+	\bottomrule[1.5pt]
+	\end{tabular}
+	\caption{陀螺仪零偏与比例误差（y轴故障不求）}
+\end{table}
+
+\section{静态粗对准实验}
+\subsection{实验目的}
+\begin{enumerate}[(1)]
+\item 掌握惯性导航系统初始对准的概念。
+\item 掌握中静态解析粗对准的原理，会利用中高精度 IMU 的原始观测数据计算惯导的初始姿态，知道姿态的欧拉角和方向余弦矩阵方式。
+\item 掌握解析粗对准的基本误差分析方法，了解影响对准精度的误差因素。
+\end{enumerate}
+\subsection{实验设备}
+中高精度1惯性测量单元（IMU），具体型号以实验安排为准。
+\subsection{实验原理}
+惯导系统刚上电启动时，其 IMU 或载体坐标系相对于参考导航坐标系的各轴指向完全未知或不够精确，无法立即进入导航状态。确定载体相对于参考导航坐标系坐标轴的相对空间朝向关系（称为惯导的初始姿态）的过程，称为初始对准。初始姿态可用姿态角或方向余弦矩阵来表示。
+
+取北东地为导航坐标系的坐标轴，即 NED 形式的 n 系。初始对准时，IMU 静止放置在地面上，此时加速度计感知的是重力加速度 g 向量在 b 系（前右下）中的分量，陀螺仪感知的是地球自转角速度向量$\omega_{ie}$在 b 系中的分量$\omega^b_{ie}$ 。这两个矢量在导航系 n 中（已知当地的经纬高）的分量是已知的，并且是常值。上述向量在 n 系和 b 系间的坐标投影变换和它们构造的第三向量为
+\begin{equation}
+\mathbf{g}^b=\mathbf{C}^b_n\mathbf{g}^n
+\end{equation}
+\begin{equation}
+\mathbf{\omega}^b_{ie}=\mathbf{C}^b_n\mathbf{\omega^n_{ie}}
+\end{equation}
+\begin{equation}
+\mathbf{v}=\mathbf{g}\times\mathbf{\omega}_{ie}
+\end{equation}
+在实际应用中，由于加速度计和陀螺的测量值存在误差，由上式求解出来的姿态矩阵不
+满足正交矩阵的特性，求解的姿态角也存在误差。为提升数值稳定性，需要做一定的改进，一种常用思路是预先对参与解算的所有矢量做正交化和单位化（归一化）处理.
+
+归一化处理完毕后，求解姿态矩阵
+\begin{equation}
+\mathbf{C}_{b}^{n}=\left[\begin{array}{c}
+\boldsymbol{v}_{g}^{\mathrm{T}} \\
+\boldsymbol{v}_{\omega}^{\mathrm{T}} \\
+\boldsymbol{v}_{g \omega}^{\mathrm{T}}
+\end{array}\right]^{-1}\left[\begin{array}{c}
+\boldsymbol{w}_{g}^{\mathrm{T}} \\
+\boldsymbol{w}_{\omega}^{\mathrm{T}} \\
+\boldsymbol{w}_{g \omega}^{\mathrm{T}}
+\end{array}\right]=\left[\begin{array}{lll}
+\boldsymbol{v}_{g} & \boldsymbol{v}_{\omega} & \boldsymbol{v}_{g \omega}
+\end{array}\right]\left[\begin{array}{c}
+\boldsymbol{w}_{g}^{\mathrm{T}} \\
+\boldsymbol{w}_{\omega}^{\mathrm{T}} \\
+\boldsymbol{w}_{g \omega}^{\mathrm{T}}
+\end{array}\right]
+\label{eq:15}
+\end{equation}
+\subsection{实验步骤及方法}
+\begin{enumerate}[(1)]
+\item 将 IMU放置在地面上（或静置在转台上），连接电源和数据线缆，保持 IMU不动。
+\item 检查线缆连接无误后给 IMU 上电，记录 IMU 数据，连续静态时长不小于 30 分钟。
+\item 断开数据采集，关闭电源。
+\item 对 IMU 原始数据进行解码、格式转换和轴系调整，所需解码软件、格式说明以实验安排为为准。
+\item 编写程序计算 IMU 的初始姿态角，横滚、俯仰和航向角。
+\end{enumerate}
+\subsection{编程实现}
+与上一过程类似，先提取出三轴的加速度输出值与角增量，在乘上系数并按指导书上作轴系调整后，用已写好的向量相乘函数得到b系下的三个向量\verb|g_b[3]|\verb|w_b[3]|\verb|gwg_b[3]|.
+\begin{lstlisting}[language=C]
+                double g_b[3] = { -fy,-fx,fz }; 
+		double w_b[3] = { wy,wx,-wz };
+		double v_b[3];
+		double gwg_b[3];
+		VectorCrossProduct(g_b, w_b, v_b);
+		VectorCrossProduct(v_b, g_b, gwg_b);
+\end{lstlisting}
+同理由地球自转角速度投影，本地纬度，重力加速度构造得到n系下的三个向量。用已写的向量单位化函数VectorToUnit()将它们单位化后，按式\eqref{eq:15}作矩阵乘法。求解出姿态变换矩阵后，提取相应元素即得姿态角。
+\begin{lstlisting}[language=C]
+              //求解姿态矩阵
+   double V[9] = { vg[0],vw[0],vgw[0],vg[1],vw[1],vgw[1],vg[2],vw[2],vgw[2] };
+   double W[9] = { wg[0],wg[1],wg[2],ww[0],ww[1],ww[2],wgw[0],wgw[1],wgw[2] };
+		double Cnb[9];
+
+		MatrixMultiply(3, 3, 3, 3, V, W, Cnb);
+
+   double yaw = atan2(Cnb[3], Cnb[0]) * 180.0 / pi;//航向角
+   double pitch = atan(-Cnb[6] / sqrt(Cnb[7] * Cnb[7] + Cnb[8] * Cnb[8]))
+                  * 180.0 / pi;//俯仰角
+   double roll = atan2(Cnb[7], Cnb[8]) * 180.0 / pi;//横滚角
+\end{lstlisting}
+循环中另有if语句及循环外的语句，是为了按每秒取平均及最终取平均求姿态角而设置。
+\subsection{求解结果展示}
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ccc}
+	\toprule[1.5pt]
+	yaw&pitch&roll\\
+	\midrule
+	-129.5456082&0.0535235& -0.2142314\\
+	\bottomrule[1.2pt]
+	\end{tabular}
+	\caption{求解航向角}
+\end{table}
+
+\subsection{数据成图}
+在程序计算出姿态角并存入文件，并按要求使用MATLAB作图。
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1\linewidth]{每历元姿态角.jpg}
+\caption{姿态角-每历元}
+\end{figure}
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1\linewidth]{每秒姿态角.jpg}
+\caption{姿态角-每秒}
+\end{figure}
+用图片可以看出，航向角随时间出现较大的波动，对噪声敏感。
+
+可以看出求平均后可以显著压制噪声影响，角度随时间的波动区间明显缩减。此外，在取每秒平均后的航向角和俯仰角成图中能观察到三角曲线的特征，可能是由于某一系统误差的影响
+\end{document}
+

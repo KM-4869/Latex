@@ -1,0 +1,171 @@
+\documentclass{ctexart}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,allcolors=red]{hyperref}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{tabularray}%表格
+\usepackage{listings}%插入关键字高亮的代码
+\usepackage{nicematrix}
+\usepackage{multirow}%\multicolumn{3}{c}{\multirow{3}{*}{\large $R_{3\times3}$}}  \multicolumn{要合并的列数}{对齐方式}{内容}  \multirow{要合并的行数}{*默认}{内容}
+\usepackage{geometry}
+\usepackage{pythonhighlight}
+\usepackage{booktabs}
+
+
+\geometry{a4paper,scale=0.7}
+
+\lstset{basicstyle=\small,
+basicstyle=\tt,
+keywordstyle=\color{blue},
+commentstyle=\color{green},
+frame=shadowbox,
+numbers=left,
+numberstyle=\tiny\color{red},
+columns=flexible,}
+\begin{document}
+\newpage
+\thispagestyle{empty}
+%\vspace*{\fill}
+    \begin{center}
+        \Huge\textbf{机器学习聚类模型实验报告}
+    \end{center}
+\vspace*{\fill}
+
+\begin{table}[h]
+    \centering
+    \Large
+    \begin{tabular}{cc}
+    \textbf{学院:} & 测绘学院 \\ \cline{2-2}
+    \textbf{专业:} & 导航工程 \\ \cline{2-2}
+    \textbf{姓名:} & 叶通 \\  \cline{2-2}
+    \textbf{学号:} & 2020302142138 \\ \cline{2-2}
+    \textbf{教师:} & 郭迟 \\ \cline{2-2}
+    \textbf{时间:} & 2023年1月23日 \\ \cline{2-2}
+    \end{tabular}
+\end{table}
+
+\newpage
+\pagenumbering{Roman}
+\setcounter{page}{1}
+\tableofcontents
+
+\newpage
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\section{实验要求与内容}
+\subsection{实验内容}
+掌握基于Python语言，使用PCA方法对样本的降维，实现划分式聚类方法Kmeans和基于密度的聚类方法DBSCAN对样本实现聚类，掌握两种方法的模型设计思想，区别与共性。
+\subsection{实验要求}
+\begin{enumerate}[(1)]
+\item 掌握sklearn库的使用
+\item 使用PCA方法实现对样本的降维
+\item 对数据集进行可视化
+\item 分别使用两种方法对样本完成聚类任务
+\item 分别使用外部指标和内部指标对聚类进行评估
+\end{enumerate}
+
+\section{编程实现过程}
+\subsection{数据集生成}
+使用make blobs函数，生成样本个数为500，含有8个特征纬度，中心类别数目为3的数据集，具体代码如下：
+\begin{python}
+X, y = make_blobs(n_samples=500, n_features=8,  centers=3,  cluster_std=4.0,  random_state=3)
+\end{python}
+
+\subsection{特征降维PCA}
+使用PCA方法，将刚刚生成的样本降维，新的维数为3维以方便可视化绘图，具体代码如下：
+\begin{python}
+# PCA方法降维
+pca = PCA(n_components=3)
+X_rd = pca.fit_transform(X)
+\end{python}
+
+\subsection{数据集可视化}
+将刚刚降到3为的样本在空间直角坐标系中绘制出来，表示成散点图的形式。
+\begin{python}
+# 数据集可视化
+fig1 = plt.figure(figsize=(10, 8))
+ax1 = Axes3D(fig1)
+x1 = X_rd[:, 0]
+x2 = X_rd[:, 1]
+x3 = X_rd[:, 2]
+ax1.scatter(x1, x2, x3, s=25, c='c', marker='h')
+plt.show()
+\end{python}
+
+绘制出的图像如下：
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{data.png}
+\caption{降维后数据集}
+\end{figure}
+
+\subsection{Kmeans方法聚类实现}
+设置Kmeans方法模型所需聚成的类为3类，初始中心向量为随机选择，进行Kmeans聚类。
+\begin{python}
+KMean_model = KMeans(n_clusters=3, init='random', n_init=1).fit(X_rd)
+
+y_predict = KMean_model.labels_  # 预测
+clu_centers = KMean_model.cluster_centers_  # 聚类中心
+\end{python}
+
+\subsection{DBSCAN方法聚类实现}
+
+设置DBSCAN的参数$\epsilon$ 单位为4，最小样本数为10，生成聚类模型。
+\begin{python}
+DBSCAN_model = DBSCAN(eps=4, min_samples=10, metric='euclidean').fit(X_rd)
+\end{python}
+
+\subsection{聚类模型性能评估}
+使用教材中给出的聚类性能评估的外部指标和内部指标，对两种模型的聚类性能进行评估，具体代码如下：
+\begin{python}
+print('FMI‘s value:', fowlkes_mallows_score(y, y_predict))
+print('RI’s value:', rand_score(y, y_predict))
+print('DB‘s value', davies_bouldin_score(X_rd, y_predict))
+\end{python}
+\vfill
+\section{模型实验结果对比分析}
+经过Kmeans聚类后生成的聚类结果可视化后如下图：
+
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{Kmeans.png}
+\caption{Kmeans聚类结果}
+\end{figure}
+\vfill
+经DBSCAN方法聚类结果如下
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{DBSCAN.png}
+\caption{DBSCAN聚类结果}
+\end{figure}
+
+从三维视图中可以看出kmeans方法能将原本样本设置的3个中心类别很好地区分出来，而DBSCAN方法则是将两个相近的簇合并认为是一个类别，总共生成了两个类。
+
+计算分析比较二者的外部指标和内部指标如下表：
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{c|ccc}
+	\toprule[1.2pt]
+	&FMI&RI&DB\\
+	\midrule
+	Kmeans&0.960679&0.973883&0.803419\\
+	\midrule
+	DBSCAN&0.693478&0.753170&2.382595\\
+	\bottomrule[1.2pt]
+	\end{tabular}
+\end{table}
+
+可以看到Kmeas的FMI与RI都非常高，DB指数小，聚类效果好；而DBSCAN的FMI,RI均偏低，而DB指数较高，聚类效果不如Kmeans方法。
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document}

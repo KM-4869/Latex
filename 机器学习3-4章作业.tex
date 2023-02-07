@@ -1,0 +1,172 @@
+\documentclass{ctexart}
+\usepackage{enumerate}
+\usepackage{amsmath}%bmatrix矩阵
+\usepackage{tabularray}%表格
+\usepackage{float}%浮动环境
+\usepackage{graphicx}%图像
+\usepackage{bm}
+
+\begin{document}
+
+\section*{第3章《贝叶斯分类器》习题}
+\subsection*{名词解释}
+\begin{enumerate}[(1)]
+\item 后验概率\\
+系统在某个具体样本在x属于某种类型的概率，需要组合先验知识和证据，利用贝叶斯公式计算获得，记作$P(\omega_i|x)$.
+\item 朴素贝叶斯分类器\\
+朴素贝叶斯分类器的训练过程就是基于训练集D来计算先验概率$P(\omega_i)$，并为每一维特征k计算类条件概率$P(x_k|\omega_i)$
+\item 极大似然估计（MLE）\\
+极大似然估计指一种给定观测值来评估模型参数的方法。若给定一组样本，通过概率密度连乘的方法来构造似然函数，再求取使得得到这组样本的概率最大的参数的值。
+\end{enumerate}
+
+\subsection*{简单阐述最小风险的Bayes决策和最小错误Bayes决策的差异？什么情况下两者是等价的？}
+最小错误率贝叶斯决策选择具有最高验后概率的类最为分类结果。而有时候为了显示将样本归为错误的类带来的损失，将样本属于其他类的后验概率乘以自定义的损失系数之和作为此类的风险，选择具有最小风险的类作为决策结果。
+
+在二分类问题中，如果$\lambda12- \lambda22= \lambda21- \lambda11 $，则称为对称损失，那么最小风险决策与最小错误率决策等价。
+
+一般多类问题中，出现0-1损失（zero-one loss）情况，采用0-1损失函数时，最小风险决策也等价于最小错误率决策。
+\subsection*{请简要说说EM算法的思想。在贝叶斯分类中什么情况需要使用EM方法？}
+EM算法指利用当前估计出的参数值来计算似然函数的期望值，在用此期望值代替实际样本值，进行极大似然估计，求取下一步的参数。重复上述步骤，直至收敛到局部最优解。
+
+在实际工作中，有些特征属性因为客观原因无法观测，样本数据“不完整”，使得概率分布含有隐变量，则需要用EM方法求解$P(X|\omega_i)$分布参数。
+\subsection*{若已知先验概率$p(\omega_1 ),p(\omega_2 ),p(\omega_3 )$，类条件概率密度$p(x|\omega_1 ),p(x|\omega_2 ),p(x|\omega_3 )$，写出至少一种最小错误贝叶斯分类的判别函数及其决策规则。}
+
+对每个类构造判别函数$g_i(x)=P(x|\omega_i)P(\omega_i)$,选择$Max(g_i(x))$的类作为x的归类。
+
+\vspace{1cm}
+\noindent{\large \textbf{假定对某一类人群进行疾病筛查，正常人群为$\omega1$，患者为$\omega2$，设正常和患者的先验概率为：$P(\omega_1)=0.7,P(\omega_2)=0.3$;现有一位被检查者，其观测值为x，从类条件概率密度曲线上查得$P(x|\omega_1)=0.15,P(x|\omega_2)=0.45$,同时已知风险损失函数为}}
+\begin{equation*}
+\begin{bmatrix}
+\lambda_{11}&\lambda_{12}\\
+\lambda_{21}&\lambda_{22}
+\end{bmatrix}=\begin{bmatrix}
+0&5\\
+1&0
+\end{bmatrix}
+\end{equation*}
+\noindent{\large \textbf{试对该被检查者用以下两种方式进行分类：\\
+用最小错误率的贝叶斯决策，并写出判别函数和决策方程；\\
+用最小风险的贝叶斯决策，并写出判别函数和决策方程。\\
+}}
+
+最小错误率贝叶斯决策：\\
+设判别函数为
+\begin{equation*}
+g(x)=\dfrac{P(x|\omega_1)}{P(x|\omega_2)}
+\end{equation*}
+决策方程为
+\begin{equation*}
+g(x)=\dfrac{P(x|\omega_1)}{P(x|\omega_2)}=\dfrac{P(\omega_2)}{P(\omega_1)}=\dfrac{3}{7}\approx0.429
+\end{equation*}
+带入x得
+\begin{equation*}
+g(x)=0.333<0.429
+\end{equation*}
+故其被归为正常人群
+
+最小风险的贝叶斯决策：\\
+设判别函数为：
+\begin{gather*}
+g_1(x)=R(x|\omega_1)=\lambda_{12}P(x|\omega_2)P(\omega_2)\\
+g_2(x)=R(x|\omega_2)=\lambda_{21}P(x|\omega_1)P(\omega_1)
+\end{gather*}
+决策方程为
+\begin{equation*}
+g_1(x)-g_2(x)=0
+\end{equation*}
+带入得
+\begin{equation*}
+g_1(x)-g_2(x)=5\times0.3\times0.45-1\times0.7\times0.15=0.675-0.105=0.57>0
+\end{equation*}
+归于正常人的风险高，故归为病人。
+
+\subsection*{请从下列样本中构造一个朴素贝叶斯分类器，确定样本$x=(2020，P)^T$的类别。样本x具有二维特征属性，取值分别为{2019，2020，2021}和{P，N，T}，y为监督标记{-1，1}代表正类和反类}
+\begin{table}[H]
+\centering
+\scalebox{0.65}{\begin{tblr}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+\hline
+ &1&2&3&4&5&6&7&8&9&10&11&12&13&14&15\\
+\hline
+x1&2019&2019&2019&2019&2019&2020&2020&2020&2020&2020&2021&2021&2021&2021&2021\\
+\hline
+x2&P&N&N&P&P&P&N&N&T&T&T&N&N&T&T\\
+\hline
+ y&-1&-1&1&1&-1&-1&-1&1&1&1&1&1&1&1&-1\\
+\hline
+\end{tblr}}
+\end{table}
+类1，-1的先验概率
+\begin{equation*}
+P(1)=\frac{9}{15}=0.6,P(-1)=\frac{6}{15}=0.4
+\end{equation*}
+取2020，P两种值在1，-1两类中的条件概率
+\begin{gather*}
+P(2020|1)=\frac{3}{9}\approx0.333,P(2020|-1)=\frac{2}{6}\approx0.333\\
+P(P|1)=\dfrac{1}{9}\approx0.111,P(P|-1)=\dfrac{3}{6}=0.5\\
+\end{gather*}
+可得
+\begin{gather*}
+P(2020|1)P(P|1)P(1)\approx0.0222\\
+P(2020|-1)P(P|-1)P(-1)\approx0.0666
+\end{gather*}
+故此样本属于-1类。
+
+\newpage
+\section*{第4章 《线性模型》习题}
+\subsection*{名词解释}
+\begin{enumerate}[(1)]
+\item 基函数\\
+通过等量代换的方法将高次项变为一次项，从而达到高维线性组合等价于低维非线性组合的转换。
+\item 联系函数\\
+在学习样本空间到标记空间的非线性函数映射过程中，起到将线性回归的预测值与非线性的真实标记联系起来的作用的函数。如当样本对应的输出标记在指数尺度上变化，可将标记输出的对数作为线性模型构建回归方程，此时对数函数为联系函数。
+\item 核函数\\
+是一种函数，使得在样本的特征空间（低维空间）中直接计算内积，而其结果等同于对样本进行基函数映射后在高维空间计算的内积。
+\item 支持向量（SV）\\
+
+\item 梯度下降法\\
+当线性回归$\mathbf{X}^T\mathbf{X}$不可逆时，使用梯度下降法训练参数，找到一个函数的局部极小值。
+
+\item 交叉熵\\
+用来衡量两个概率分布的差异性信息。设随机变量真实的概率分布为P(X)，而处理问题时使用的近似概率分布为Q（X），交叉熵的定义为
+\begin{equation*}
+H(P,Q)=-\sum^n_{i=1}P(x_i)logQ(x_i)
+\end{equation*}
+\item 代价函数\\
+定义在全体样本上的损失函数，是损失函数的平均。
+\end{enumerate}
+
+\subsection*{假设三个$\omega_1,\omega_2.\omega_3$判别函数为：}
+
+\begin{equation}
+\left\{
+\begin{aligned}g_1(x)=-x_1-x_2+5\\
+g_2(x)=-x_1+3\\
+g_3(x)=-x_1+x_2
+\end{aligned}
+\right.
+\end{equation}
+
+\subsection*{请画图给出一对多情况下的判别边界，以及三个类别的判别区域，并判断样本(1,3)及(4,5)的类别，如果不能确定其类别，请说明原因}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{第四章作业.jpg}
+
+\end{figure}
+
+如图易知（1,3）$g_1与g_2$都将其判正，故（1,3）无法判断。\\
+点（4,5）$g_3$判正，其余判负，故其属于$\omega_3$类。
+
+\subsection*{四 .计算题 （1）假设LDA最佳投影直线确定为$5x_1-2x_2+1=0$。试求：向量$\left(\begin{array}{c}2\\8\end{array}\right)$，$\left(\begin{array}{c}-1\\-7\end{array}\right)$在该直线的LDA投影；（2）推导样本在直线w上投影点的协方差为$\omega^T\sum_0\omega$}
+
+(1)直线的方向向量为$\left(\begin{array}{c}2\\5\end{array}\right)$，化为单位向量为$\left(\begin{array}{c}\frac{2}{\sqrt{29}}\\ \frac{5}{\sqrt{29}}\end{array}\right)$,向量点乘后有
+\begin{gather*}
+(2 \hspace{5mm} 8)\cdot \left(\begin{array}{c}\frac{2}{\sqrt{29}}\\ \frac{5}{\sqrt{29}}\end{array}\right)=\frac{44}{\sqrt{29}}\\
+(-1 \hspace{3mm} -7)\cdot \left(\begin{array}{c}\frac{2}{\sqrt{29}}\\ \frac{5}{\sqrt{29}}\end{array}\right)=\frac{-37}{\sqrt{29}}
+\end{gather*}
+
+(2)假设有d维向量$\mathbf{x}=(x_1,x_2,\dots,x_d)$,其m个$\mathbf{x}$的均值向量为$\bm{\mu}=(\bar{x}_1,\bar{x}_2,\dots,\bar{x}_d)$,
+协方差为$\bm{\Sigma}=\dfrac{\sum\limits^m\limits_{i=1}(\bm{x}_i-\bm{\mu})(\bm{x}_i-\bm{\mu})^T}{m}$。向量$\bm{x}$ 在直线上的投影为$\bm{\omega}^T\bm{x}$,均值向量投影点为$\bm{\omega}^T\bm{\mu}$,故投影后的协方差为$\dfrac{\sum\limits^m\limits_{i=1}(\bm{\omega}^T\bm{x}_i-\bm{\omega}^T\bm{\mu})(\bm{\omega}^T\bm{x}_i-\bm{\omega}^T\bm{\mu})^T}{m}=\dfrac{\sum\limits^m\limits_{i=1}\bm{\omega}^T(\bm{x}_i-\bm{\mu})(\bm{x}_i-\bm{\mu})^T\bm{\omega}}{m}=\bm{\omega}^T\bm{\Sigma}\bm{\omega}$
+
+
+
+\end{document}

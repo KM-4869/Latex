@@ -1,0 +1,623 @@
+\documentclass{ctexart}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,allcolors=red]{hyperref}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{tabularray}%表格
+\usepackage{listings}%插入关键字高亮的代码
+\lstset{basicstyle=\small,
+basicstyle=\tt,
+keywordstyle=\color{blue},
+commentstyle=\color{green},
+frame=shadowbox,
+numbers=left,
+numberstyle=\tiny\color{red},
+columns=flexible,}
+\begin{document}
+\newpage
+\thispagestyle{empty}
+%\vspace*{\fill}
+    \begin{center}
+        \Huge\textbf{卫星导航算法程序设计报告}
+    \end{center}
+\vspace*{\fill}
+
+\begin{table}[h]
+    \centering
+    \large
+    \begin{tabular}{cc}
+    \textbf{课程名称:} & 卫星导航算法与程序设计 \\ \cline{2-2}
+    \textbf{班级:} & 导航工程3班 \\ \cline{2-2}
+    \textbf{姓名:} & 叶通 \\  \cline{2-2}
+    \textbf{学号:} & 2020302142138 \\ \cline{2-2}
+    \textbf{时间:} & \today \\ \cline{2-2}
+    \end{tabular}
+\end{table}
+
+\newpage
+\pagenumbering{Roman}
+\setcounter{page}{1}
+\tableofcontents
+
+\newpage
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\section{程序设计概述}
+\subsection{程序设计目的}
+\begin{enumerate}[(1)]
+\item 基于NovAtel OEM719 GNSS接收机板卡，开发卫星导航定位软件，实现GPS/BDS
+单点定位
+\item 理解并掌握卫星导航定位算法及其程序的设计方法与实现过程
+\item 培养系统开发与集成的能力
+\end{enumerate}
+\subsection{程序设计要求}
+\label{1.2}
+用标准C/C++语言，在PC平台下实现从OEM719或K708、
+UB4B0 GNSS板卡中实时获取伪距、多普勒频移、广播星历
+等数据，进行导航定位测速（PVT）解算，并输出定位结果
+与精度统计。最终实现在Windows控制台下的实时导航程序。
+\subsection{编程语言}
+本程序主要以C语言为主，以结构体为数据的载体，通过调用各种函数来实现指定功能。在此基础上灵活加入了一些C++的方便优化的性质。如使用了动态分配new,delete;
+使用了C++自带的vector类容器;使用了函数模板功能;在结构体中使用构造函数初始化，和重载运算符等功能及语法。
+\subsection{程序概述}
+本程序共由矩阵运算模块，时间系统转换模块，坐标系统转换模块，解码模块，单点定位与测速模块，最小二乘运算及精度评定模块等组成，每个模块自成一个cpp文件，
+外加实现网络和串口等功能的外部引用的cpp。在主函数模块包含各自的头文件，统筹调用各个模块，实现\ref{1.2}中提到的程序功能。
+
+\section{算法与程序设计}
+\subsection{矩阵运算算法与程序实现}
+\subsubsection{矩阵加,减,乘法算法}
+按线性代数中的矩阵运算规则，即两个矩阵中对应元素相加，对应元素相减的法则，进行矩阵的加减运算。
+
+矩阵的乘法同样如此。设有$m\times s$行矩阵$\textbf{A}$与$s\times n$行矩阵\textbf{B},当$\textbf{C}=\textbf{A}\textbf{B}$时，有
+\begin{equation}
+c_{ij}=\sum^s_{k=1}a_{ik}b_{kj}
+\label{eq:1}
+\end{equation}
+\subsubsection{矩阵加,减,乘法程序设计与实现}
+用一维数组来表示矩阵，每次运算通过一个函数实现。将想用一维数组表达的矩阵的行数与列数，以及两个运算矩阵和结果矩阵作为参数传进函数中，进行运算。加减法可以用一重for循环来实现对应元素相加。乘法则按\eqref{eq:1}式，用三重循环来实现对结果数组的元素的赋值。
+\subsubsection{矩阵加,减,乘法程序容错处理}
+进行矩阵乘法时，若输入的矩阵行数与列数不匹配，则返回0值。
+\subsubsection{矩阵行列式，求伴随与求逆算法}
+先实现矩阵的行列式，伴随矩阵计算，再由下式求解矩阵的逆。
+\begin{equation}
+\mathbf{A}^{-1}=\frac{\mathbf{A}^*}{\left|\mathbf{A}\right|}
+\label{eq:2}
+\end{equation}
+
+行列式的算法按线性代数中行列式的定义式来计算。将n阶行列式按第一行展开，每个元素乘以它们的代数余子式。伴随矩阵为每个元素的代数余子式矩阵的转置矩阵。
+\subsubsection{矩阵行列式，求伴随与求逆程序设计与实现}
+由于矩阵行列式的求取是一个一直展开，求余子式，展开，求余子式的过程，故可以用函数的递归调用来实现行列式的降维与求解。由行列式的一阶，二阶公式可以直接求解行列式值，故将输入的大于二阶的n阶矩阵按首行展开，用双重for循环获取首行元素的代数余子式数组，其余子式为n-1的行列式，再调用本函数求解，直至所有的行列式都化为2阶用公式求出具体值。
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{矩阵求行列式算法流程图.jpg}
+\caption{矩阵求行列式算法流程图}
+\end{figure}
+
+获得行列式求解函数后，则可以轻易求矩阵中每个的余子式，组成伴随矩阵。之后再按
+\eqref{eq:2}式求解矩阵的逆。
+\subsubsection{矩阵行列式，求伴随与求逆程序容错处理}
+进行矩阵求逆时，当输入矩阵的行列式为0时，返回0值。
+
+\subsection{时间与坐标转换算法与程序实现}
+\subsubsection{时间与坐标转换算法}
+GPS时与儒略日的转换算法如下。
+\begin{equation}
+\begin{gathered}%gathered多行一个编号，gather多行每行编号
+GPS WEEK=INT[(MJD-44244)/7]\\
+SecOfWeek=(MJD-44244-GPSWEEK\times7)\times86400\\
+MJD=44244+GPSWEEK\times7+\frac{SecOfWeek}{86400}
+\end{gathered}
+\end{equation}
+大地坐标BLH与笛卡尔坐标系的转换公式如下
+\begin{equation}
+\begin{gathered}
+X=(N+H)cosBcosL  \\
+Y=(N+H)cosBsinL \\
+Z=[N(1-e^2)+H]sinB
+\label{eq:4}
+\end{gathered}
+\end{equation}
+\vspace{1cm}
+\begin{equation}
+\begin{gathered}
+L=\arctan \left(\frac{Y}{X}\right) \\
+B=\arctan \left(\tan \varphi \cdot\left(1+a \frac{e^{2}}{Z} \cdot \frac{\sin B}{W}\right)\right) \\
+H=\frac{Z}{\sin B}-N(1-e^2)
+\label{eq:5}
+\end{gathered}
+\end{equation}
+\subsubsection{时间与坐标转换程序设计与实现}
+将儒略日和GPS时分别定义成为结构体，其中儒略日分为整数部分和小数部分，GPS时包含GPS周和周内秒。在转换时直接由GPS周内秒转为儒略日的小数部分，避免了大数吞小数问题，有效地保证了精度。
+
+大地坐标与笛卡尔坐标转换按\eqref{eq:4}\eqref{eq:5}式计算。设计转换函数，将BLH结构体与空间坐标XYZUION共用体作为参数传入，再将所用椭球的半长轴a与偏心率平方$e^2$作为参数传入。其中计算大地时纬度时需进行迭代计算。
+\subsubsection{时间与坐标转换程序容错处理}
+当空间坐标的三维都十分小时（小于1.0E-8），认为其在原点附近，不可转，返回0值。
+
+当纬度为0时，即点在赤道上时，此时若直接按\eqref{eq:5}求解H会出现除0的情况，改用$H=\sqrt{X^2+Y^2}-a$来计算大地高H。
+\vfill
+\subsection{读二进制文件获取数据程序实现}
+本程序采用每解一条消息就返回值，并前移缓冲区，再从文件中读新数据的模式实现。
+设缓冲区长度为MaxBuffLen,每次解完一条消息，未解的消息长度为RemLen,解完后剩余的RemLen个字节将前移MaxBuffLen-RemLen的长度。当文件能正常读取数据时，从buff+RemLen的位置开始读取MaxBuffLen-RemLen个字节，再次读满缓冲区，循环往复，实现文件的读取。当读到文件结尾时，所读个数read\_count不等于应读个数，即读不满缓冲区。此时为了防止缓冲区未能被覆盖的残余数据造成重复解码的情况，从buff+RemLen + read\_count的地方开始，往后用'\verb|\|0'覆盖本应被新数据覆盖的地方。此后每次读取的个数read\_count都等于0，依然给前移后残余的旧数据从buff+RemLen + read\_count的地方赋'\verb|\|0'，再继续解码。重复上述步骤，直至buff的首位为'\verb|\|0'，说明缓冲区的数据全部解码完毕，结束程序。
+\begin{figure}[H]
+\includegraphics[height=9.8cm,width=1.0\linewidth]{文件结尾时解码示意图-导出.jpg}
+\caption{文件结尾时解码示意图}
+\end{figure}
+这样一来，只用了一个赋值循环，就实现了对缓冲区余下的数据的处理，可以说是十分的方便。
+
+另外，选择这种每解一条数据便返回，读取新数据的方法，可以在解码时根本不需要去查找同步字节，因为每次解码完成前移后同步字节就在缓冲区的首位，直接按消息格式取相应的字节解码即可。而且也不需要考虑会有消息不完整，缓冲区中没有观测值的这些情况，因为每次只解排在缓冲区的首条消息，只要缓冲区长度设置的大于消息长度，就一定是完整的。同理也能想到此种方式所需缓冲区较小，可以只设10240个字节就可以完成整个程序，减小空间占用。缺点是需要频繁读取文件，程序效率不高。
+
+\subsection{数据解码程序实现}
+\subsubsection{数据解码主函数程序设计与实现}
+在读取完数据后，调用NonAteloem7DataDecode函数进行数据解码。传入参数为缓冲区buff，定义的观测数据结构体，用vector存的GPS、BDS星历结构体数组，解码所得位置结构体，剩余字节数RemLen。
+
+对每条消息，先获取它的头长度（通常是28），之后获取每条数据的总长。随后进行crc校验。若校验不通过则先进行前移，再返回0值。通过后则根据该条消息的MessageID使用switch语句来调用相应的解码函数进行解码。解码完成后进行前移，并改变RemLen的大小，返回\underline{\textbf{MessageID}}值。后在主函数中若判断解到MesID为43，则说明解到观测数据，调用后续定位程序完成定位。
+
+在此说明，本程序中用到的解二进制数据的函数只有一个。使用C++函数模板功能，传入任意类型的参数，自动根据类型的大小从buff中拷贝相应字节，完成二进制到任意类型的转换。用一个函数即可轻松实现原本需要很多d8,U2之类不同的函数实现的功能。
+\subsubsection{观测数据解码程序设计与实现}
+观测数据结构体由观测信息条数，卫星数，GPS时，vector存的卫星观测值结构体数组构成。其中每一个卫星观测值结构体SATELLITE\_OBSERVATION中，存放一颗卫星的prn号，导航系统，双频伪距，相位，多普勒及其精度，载噪比，和伪距if组合。
+
+进行解码时，先获取本条消息的观测信息条数，然后对每条循环。解完一条的prn号和导航系统后，由于观测信息会重复播发一颗卫星的双频数据，故对已解出的卫星进行遍历，判断此卫星是否是重复卫星。若是则打破循环，对此重复卫星赋相应的频率的多普勒，伪距和相位观测值。若是新卫星，则卫星数加一，vector存的卫星观测值结构体数组空间（size）加一并对其赋相应的频率的多普勒，伪距和相位观测值。
+\begin{figure}[H]
+\includegraphics[height=14cm,width=1.0\linewidth]{观测数据解码流程图-导出.jpg}
+\caption{观测数据解码流程图}
+\end{figure}
+
+需要说明，这里的卫星观测值结构体数组是由vector容器储存的，它的好处是可以不需要事先知道数组的大小，来一个数据就存一个数据。因为每次来的观测卫星数都不一致，用vector数组可以动态地存放卫星观测值结构体，不会造成空间上的浪费，也不会有某历元有很多数据造成数组超限的情况，再来就是以后对观测值循环时，可以直接对其的大小size进行循环，不需要做多余的判断来避免那些没被赋值的空结构体。而且在粗差探测，检测星历健康状况等时，可以直接对不需要的数据从数组中删去。除了此处，对于GPS星历，BDS星历，卫星位置结果结构体等，都是用vector来存放的。
+
+\subsubsection{星历解码程序设计与实现}
+星历解码相对简单。进行解码时，分GPS与BDS，按各自定义的格式，给星历结构体赋值。
+
+由于星历是一条一条播发的，所以在数据解码主函数中还要加几项判断，将离散播发的同一组星历编成结构体数组。另外，在此检查星历是否有卫星状态不健康和星历过期的，若有，则从星历数组中将其删去。
+\subsubsection{位置解码程序设计与实现}
+位置解码更加简单。当MesID为42时。调用位置解码函数，解BESTPOS中的数据。
+
+\subsection{粗差探测算法与程序实现}
+\subsubsection{粗差探测与计算IF组合算法}
+通过计算当前每一卫星的相位GF与上一历元相位GF的差值，当前历元的MW与上一历元对应的MW平滑值的差值，若差值超过阈值，则判断为粗差。
+
+计算相位GF组合的公式如下
+\begin{equation}
+L_{gf}=L_1-L_2=\lambda_1\varphi_1-\lambda_2\varphi_2
+\label{eq:6}
+\end{equation}
+
+计算MW组合的公式如下
+\begin{equation}
+L_{\mathrm{MW}}=\frac{1}{f_{1}-f_{2}}\left(f_{1} L_{1}-f_{2} L_{2}\right)-\frac{1}{f_{1}+f_{2}}\left(f_{1} P_{1}+f_{2} P_{2}\right)
+\label{eq:7}
+\end{equation}
+对于第i个历元的MW平滑值，按如下公式计算
+\begin{equation}
+\overline{L_{M W}\left(t_{i+1}\right)}=\frac{i}{i+1} \overline{L_{M W}\left(t_{i}\right)}+\frac{1}{i+1} L_{M W}\left(t_{i+1}\right)
+\label{eq:8}
+\end{equation}
+
+当判断为没有粗差时，为其计算伪距的if组合观测值
+\begin{equation}
+P_{I F}=\frac{1}{f_{1}^{2}-f_{2}^{2}}\left(f_{1}^{2} P_{1}-f_{2}^{2} P_{2}\right)
+\label{eq:9}
+\end{equation}
+
+\subsubsection{粗差探测程序设计与实现}
+在观测数据结构体中，加入History\_Sat用vector存放的结构体数组，用来保存历史卫星数据。每个结构体中包含一个卫星的prn号，导航系统，上一历元载波相位gf组合，之前历元的平滑MW组合观测值，迄今为止历元数和更新状态。
+
+粗差探测函数每次只传入观测数据结构体一个参数。开始粗差探测前，现将每颗卫星的更新状态设置为false。进入对观测数据中的卫星观测值结构体数组循环后，第一步为检查每颗卫星的双频伪距与相位数据是否完整，不完整则将其从数组中删除，由于解码时只对GPS与BDS卫星赋了伪距与相位值，其他系统只有prn号与导航系统，故此操作也将淘汰掉非GPS与BDS的卫星。第二步为按\eqref{eq:6}\eqref{eq:7}计算并保存每颗卫星的GF和MW组合。
+
+接下来开始对每颗卫星开始在历史数据中的遍历，如果在历史数据中找到该卫星，则为其计算与上一历元gf组合的差值和与MW平滑值的差值，检查二者是否超过阈值，若没超过，则判断没有粗差，按\eqref{eq:9}为其计算伪距的if组合，并更新历史数据，保存新的gf组合值，按\eqref{eq:8}计算新的MW平滑值。如果超过阈值，将此卫星从数组中删除，同时将此卫星从历史数据中删除，下一次此刻卫星出现将被当做新卫星加入到数组末尾。若没找到，则在历史数据中记录此卫星，赋予其prn号和导航系统，以及gf和WM值。
+
+上述过程完成后，再遍历已保存的历史数据，若其中发现有未被更新过的卫星，说明此卫星在本历元有观测值缺失或者根本没有出现过，那么它下一次出现时，里面保存的数据可能将是n个历元之前的，为了防止这种现象出现，当一颗卫星的历史数据未被更新时，它将被从历史库中删除，下一次出现时，它将被当做新卫星加入数组末尾。
+
+\begin{figure}[H]
+\includegraphics[height=20cm,width=1.0\linewidth]{粗差探测流程图-导出.jpg}
+\caption{粗差探测流程图}
+\end{figure}
+
+\subsection{卫星位置计算算法与程序实现}
+\subsubsection{任意时刻卫星位置计算算法}
+\label{2.6.1}
+以GPS卫星为例，计算卫星位置公式如下：\\
+1.计算卫星平均运动角速度
+\begin{equation}
+n_{0}=\sqrt{\frac{\mu}{A^3}}
+\end{equation}
+2. 计算相对于星历参考历元的时间:
+\begin{equation}
+t_{k}=t-t_{o e}
+\end{equation}
+t 为信号发射时的时间。
+3. 对平均运动角速度进行改正:
+\begin{equation}
+n=n_{0}+\Delta_{n}
+\end{equation}
+4. 计算平近点角:
+\begin{equation}
+M_{k}=M_{0}+n t_{k}
+\end{equation}
+5. 计算偏近点角
+\begin{equation}
+M_{k}=E_{k}-e \sin E_{k}
+\end{equation}
+6. 计算真近点角:
+\begin{equation}
+v_{k}=\arctan \frac{\sqrt{1-e^{2}} \sin E_{k}}{ \cos E_{k}-e}
+\end{equation}
+7. 计算升交角距:
+\begin{equation}
+\Phi_{k}=v_{k}+\omega
+\end{equation}
+8. 计算二阶改正数:
+\begin{equation}
+\begin{gathered}
+\delta_{u_{k}}=C_{u s} \sin 2 \Phi_{k}+C_{u c} \cos 2 \Phi_{k} \\
+\delta_{r_{k}}=C_{r s} \sin 2 \Phi_{k}+C_{r c} \cos 2 \Phi_{k} \\
+\delta_{i_{k}}=C_{i s} \sin 2 \Phi_{k}+C_{i c} \cos 2 \Phi_{k}
+\end{gathered}
+\end{equation}
+9.计算升交角距
+\begin{equation}
+u_k=\Phi_{k}+\delta_{u_{k}}
+\end{equation}
+10. 计算经过改正的向径:
+\begin{equation}
+r_{k}=A\left(1-e \cos E_{k}\right)+\delta_{r_{k}}
+\end{equation}
+11. 计算经过改正的轨道倾角:
+\begin{equation}
+i+k=i_{0}+\delta_{i_{k}}+(I D O T) t_{k}
+\end{equation}
+12. 计算卫星在轨道平面上的位置:
+\begin{equation}
+\begin{gathered}
+x_{k}^{\prime}=r_{k} \cos u_{k} \\
+y_{k}^{\prime}=r_{k} \sin u_{k}
+\end{gathered}
+\end{equation}
+13. 计算改正后的升交点经度:
+\begin{equation}
+\Omega_{k}=\Omega_{0}+\left(\dot{\Omega}-\dot{\Omega}_{e}\right) t_{k}-\Omega_{e} t_{o} e
+\end{equation}
+14. 计算在地固坐标系下的位置:
+\begin{equation}
+\begin{gathered}
+x_{k}=x_{k}^{\prime} \cos \Omega_{k}-y_{k}^{\prime} \cos i_{k} \sin \Omega_{k} \\
+y_{k}=x_{k}^{\prime} \sin \Omega_{k}+y_{k}^{\prime} \cos i_{k} \cos \Omega_{k} \\
+z_{k}=y_{k}^{\prime} \sin i_{k}
+\end{gathered}
+\end{equation}
+
+\subsubsection{任意时刻卫星位置计算程序设计与实现}
+分别为GPS与BDS卫星写两个计算卫星位置函数，以下以GPS卫星位置计算为例。
+输入\textbf{单个GPS星历}，GPS时表示的时间，计算一个卫星位置结果结构体。按\ref{2.6.1}中所提到的各项公式计算卫星位置，并且顺带计算卫星的速度，钟差与钟速。计算结果都存入卫星位置结果结构体中。
+
+\subsubsection{信号发射时刻的卫星位置计算算法}
+由于信号传递需要时间，所以不能直接由观测时刻的时间计算卫星位置。观测方程中的卫星位置实际上是在一段时间前的信号发射时刻位置，伪距实际上是不同时空下的一段长度。由于伪距P=(表面时$t_R$-表面时$t^S$)$\times c$,故可用伪距计算卫星钟表面时。
+\begin{equation}
+\mbox{表面时} t_S=\mbox{表面时}t_R-\frac{P}{c}
+\end{equation}
+
+再按以下公式计算钟差
+\begin{equation}
+\delta t=af_0+af_1(t-t_{oc})+af_2(t-t{oc})^2
+\end{equation}
+再由以下公式得到真正卫星发射时刻$t_S$，用其作为t带入计算任意时刻卫星位置函数。
+\begin{equation}
+t_S=\mbox{表面时} t_S-\delta t
+\end{equation}
+
+\subsubsection{信号发射时刻的卫星位置计算程序设计与实现}
+在本程序中，计算信号发射时刻卫星位置的函数，同时承担了将观测值中通过粗差探测的卫星与星历一一对应，\footnote{对北斗卫星的TGD改正也加在了查找到BDS星历之后。}进而用它们的伪距if组合计算它们的信号发射时刻卫星位置，生成一组与卫星观测值一一对应的卫星位置计算结果结构体数组存进vector容器中的任务。若某个观测值卫星在BDS星历与GPS星历中均未找到，则将此卫星删除。
+
+需要注意的是，在本程序中，计算任意时刻卫星位置的函数传入的是单个星历，生成单个卫星位置结果结构体，而计算信号发射时刻卫星位置的函数传入一组GPS星历，一组BDS星历，生成一组卫星位置结果结构体。
+\begin{figure}[H]
+\includegraphics[height=110mm,width=1.0\linewidth]{计算信号发射时刻卫星位置流程图-导出.jpg}
+\caption{计算信号发射时刻卫星位置流程图}
+\end{figure}
+
+\subsection{单点定位SPP算法与程序实现}
+\subsubsection{单点定位SPP算法}
+双频无电离层组合（IF组合）伪距观测方程为
+\begin{equation}
+P=\rho+c\cdot\delta t_R-c\cdot \delta t^S +Trop
+\end{equation}
+
+其中$\rho$为几何距离，它等于
+\begin{equation}
+\rho=\sqrt{(X^i-X)^2+(Y^i-Y)^2+(Z^i-Z)^2}
+\label{eq:28}
+\end{equation}
+
+设测站坐标和接收机钟差$c\cdot\delta t_R$(单位m)的初值为$X_0$、$Y_0$、$Z_0$、$T_0$。在($X_0$ $Y_0$ $Z_0$ $T_0$)处泰勒展开，并舍去高阶项有
+
+\begin{equation}
+P=\frac{X_0-X^i}{\rho_0}dX+\frac{Y_0-Y^i}{\rho_0}dY+\frac{Z_0-Z^i}{\rho_0}dZ+dT+\rho_0+T_0 - c\cdot\delta t^S+Trop
+\label{eq:29}
+\end{equation}
+
+将系数用$a_i$,$b_i$,$c_i$表示，将方程写成矩阵形式有
+\begin{equation}
+\begin{bmatrix}
+v_1\\
+v_2\\
+v_3\\
+\vdots\\
+v_n
+\end{bmatrix}=\begin{bmatrix}
+a_1&b_1&c_1&1\\
+a_2&b_2&c_2&1\\
+a_3&b_3&c_3&1\\
+\vdots&\vdots&\vdots&\vdots\\
+a_n&b_n&c_n&1
+\end{bmatrix}\begin{bmatrix}
+dX\\
+dY\\
+dZ\\
+dT
+\end{bmatrix}-\begin{bmatrix}
+l_1\\
+l_2\\
+l_3\\
+\vdots\\
+l_n
+\end{bmatrix}
+\label{eq:30}
+\end{equation}
+
+其中常数项$l_i$为
+\begin{equation}
+l_i=P_i-(\rho_{0,i}+T_{0,i}-c\cdot\delta t^S_i+Trop_i)
+\end{equation}
+式\eqref{eq:30}即为
+\begin{equation}
+\mathbf{v}=\mathbf{B}\mathbf{x}-\mathbf{l}
+\label{eq:32}
+\end{equation}
+
+考虑多个导航系统，式\eqref{eq:29}可以写为
+
+\begin{equation}
+P=\frac{X_0-X^i}{\rho_0}dX+\frac{Y_0-Y^i}{\rho_0}dY+\frac{Z_0-Z^i}{\rho_0}dZ+dT^N+\rho_0+T^N_0 - c\cdot\delta t^S+Trop
+\label{eq:33}
+\end{equation}
+其中N$\in(GPS,BDS,GLONASS,GALILEO\cdots)$
+
+写成矩阵形式有
+\begin{equation}
+\begin{bmatrix}
+v_1\\
+v_2\\
+v_3\\
+\vdots\\
+v_n
+\end{bmatrix}=\begin{bmatrix}
+a_1&b_1&c_1&1&0&\cdots&0\\
+a_2&b_2&c_2&1&0&\cdots&0\\
+a_3&b_3&c_3&0&1&\cdots&0\\
+a_4&b_4&c_4&0&1&\cdots&0\\
+\vdots&\vdots&\vdots&\vdots&\vdots&\ddots&\vdots\\
+a_n&b_n&c_n&0&0&\cdots&1
+\end{bmatrix}\begin{bmatrix}
+dX\\
+dY\\
+dZ\\
+dT^{GPS}\\
+dT^{BDS}\\
+\vdots\\
+dT^{N}
+\end{bmatrix}-\begin{bmatrix}
+l_1\\
+l_2\\
+l_3\\
+\vdots\\
+l_n
+\end{bmatrix}
+\label{eq:34}
+\end{equation}
+其中常数项$l_i$为
+\begin{equation}
+l_i=P_i-(\rho_{0,i}+T^N_{0,i}-c\cdot\delta t^S_i+Trop_i)
+\end{equation}
+$N\in(GPS,BDS,GLONASS,GALILEO\cdots)$
+
+有最小二乘法则求解\eqref{eq:32}式，可得
+\begin{equation}
+\mathbf{x}=(\mathbf{B^T}\mathbf{P}\mathbf{B})^{-1}\mathbf{B}\mathbf{P}\mathbf{l}
+\end{equation}
+
+由于一开始进行单点定位时把初值都设为0，导致线性化误差较大，故需要迭代计算求解。
+
+\subsubsection{单点定位SPP程序设计与实现}
+SPP单点定位函数参数有观测数据结构体，卫星位置计算结果结构体，测站（接收机）定位结果结构体，解算精度结构体。定位结果结构体中包括测站地心地固坐标，测站大地坐标，测站速度，接收机钟差，接收机钟速。精度结构体中包括sigma0值，PDOP值与协因数阵$Q_{xx}$。
+
+开始时先用传入的测站定位结果结构体给待求参数动态数组XYZT的前三项赋值,如果是第一次定位，则初值为（0,0,0），否则初值为上一次定位的结果。
+
+随后进入迭代的循环。对每个卫星观测值进行循环（同时也是对卫星位置计算结果的循环，此时二者一一对应）。计算每个卫星的地球自转改正值，随后用其来计算卫星的高度角，对于高度角小于15°的卫星进行剔除（考虑到首次定位时迭代过程中偏差较大，首次迭代时不对卫星进行剔除）。计算对流层延迟。
+
+随后进行线性化后矩阵的构造。由于事先不知道观测值中会有几个导航系统的数据，\eqref{eq:34}中的矩阵行数和列数都是未知的，待求参数的个数也是未知的，为了灵活适应任意（最大四个）导航系统个数和任意组合的解算，本人使用了以下思想解决这个问题。
+
+定义selector[4]={0,0,0,0}的数组。对观测值循环时，顺便确定导航系统的个数和分别是哪几个导航系统。按GPS,BDS,GLONASS,GALILEO的顺序对selector进行赋值，如此时若只有GPS和GLONASS两个系统，则selector=[1,0,1,0]。当确定导航系统数目，B矩阵,l矩阵,P矩阵的维数和待求参数个数随之确定\footnote{此时若待求参数小于方程（卫星）个数，return false}。用new动态分配出指定的大小并把B矩阵初始化为0矩阵后，对B矩阵赋值。
+
+对B矩阵的某行来说，前三列为按\eqref{eq:33}式线性化后的系数。之后，根据卫星的导航系统和selector的状态，对相应位置赋1值。若是GPS卫星则在第[ 2 + selector[0]]列赋1，BDS在第[2 + selector[0] + selector[1]]列赋1，GLONASS在第[2 + selector[0] + selector[1] + selector[2]]列赋1，GALILEO在第[2 + selector[0] + selector[1] + selector[2] + selector[3]]列赋1.这样一来就可以实现对不同系统的组合的B矩阵构造。例如selector=[1,0,1,0]，GPS在第[3]列的位置赋1，GLONASS在第[4]列赋1,未被赋值的都为初值0.
+以下为简化的代码示意图。
+\begin{lstlisting}[language=C]
+switch(Navigation_System)
+case GPS:
+B[i * (3 + NavSysNum) + 2 + selector[0]] = 1.0;
+break;
+case BDS:
+B[i * (3 + NavSysNum) + 2 + selector[0] + selector[1]] = 1.0;
+break;
+case GLONASS:
+B[i * (3 + NavSysNum) + 2 + 
+selector[0] + selector[1] + selector[2]] = 1.0;
+break;
+case GALILEO:
+B[i * (3 + NavSysNum) + 2 + 
+selector[0] + selector[1] + selector[2] + selector[3]] = 1.0;
+break;
+\end{lstlisting}
+
+同样，对l中需要减去哪个接收机钟差参数初值也是同样的做法。
+
+构造完B,l,P（等权单位阵）后，调用最小二乘函数进行求解。之后对求解结果调用精度评定函数求取sigma0值与PDOP值。用求解结果更新待求参数，并对测站定位结构体赋值。解出的x均小于阈值时，认为其收敛，返回true.超过10次仍未收敛，返回false。
+\begin{figure}[H]
+\includegraphics[height=190mm,width=0.6\linewidth]{SPP流程图-导出.jpg}
+\caption{SPP流程图}
+\end{figure}
+\subsubsection{单点测速SPV算法}
+\label{2.7.3}
+对式\eqref{eq:28}两边同时对t求导后有
+
+\begin{equation}
+\dot{\rho}=\dfrac{(X^i-X)(\dot{X}^i-\dot{X})+(Y^i-Y)(\dot{Y}^i-\dot{Y})+(Z^i-Z)(\dot{Z}^i-\dot{Z})}{\rho}
+\end{equation}
+
+观测方程为.
+\begin{equation}
+dopp=\dot{\rho}+c\cdot\delta\dot{t}_R-c\cdot\delta\dot{t}^S
+\end{equation}
+
+其中dopp的单位是米每秒，计算方法为多普勒观测值(Hz)$\times$相应波长(m)。
+
+这是一个线性方程，设$c\cdot\delta\dot{t}_R$为$\dot{T}$,展开得
+\begin{equation}
+dopp=\dfrac{X-X^i}{\rho}\dot{X}+\dfrac{Y-Y^i}{\rho}\dot{Y}+\dfrac{Z-Z^i}{\rho}\dot{Z}+\dot{T}+\dfrac{(X^i-X)\dot{X}^i+(Y^i-Y)\dot{Y}^i+(Z^i-Z)\dot{Z}^i}{\rho}-c\cdot\delta\dot{t}^S
+\end{equation}
+
+由于接收机钟速应该是对各个系统都相同，故可以只设一个参数。
+
+将方程写成形如\eqref{eq:30}的矩阵形式有
+\begin{equation}
+\begin{bmatrix}
+v_1\\
+v_2\\
+v_3\\
+\vdots\\
+v_n
+\end{bmatrix}=\begin{bmatrix}
+a_1&b_1&c_1&1\\
+a_2&b_2&c_2&1\\
+a_3&b_3&c_3&1\\
+\vdots&\vdots&\vdots&\vdots\\
+a_n&b_n&c_n&1
+\end{bmatrix}\begin{bmatrix}
+\dot{X}\\
+\dot{Y}\\
+\dot{Z}\\
+\dot{T}
+\end{bmatrix}-\begin{bmatrix}
+l_1\\
+l_2\\
+l_3\\
+\vdots\\
+l_n
+\end{bmatrix}
+\end{equation}
+其中常数项$l_i$为
+\begin{equation}
+l_i=dopp_i-\left(\dfrac{(X^i-X)\dot{X}^i+(Y^i-Y)\dot{Y}^i+(Z^i-Z)\dot{Z}^i}{\rho_i}-c\cdot\delta\dot{t}^S_i\right)
+\end{equation}
+
+\subsubsection{SPV程序设计与实现}
+SPV的实现相对较简单。函数输入参数为观测数据结构体，卫星位置结果结构体，测站位置结果结构体，精度结构体。
+
+将观测方程按\ref{2.7.3}中各项公式所示构建矩阵B,l,P,随后调用最小二乘函数与精度评定函数求解即可。
+\vfill
+\section{结果精度分析}
+
+下面以本程序从2022年11月24日0时-8时由网络端口接收数据解算的结果为例简要分析解算精度。
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时测站地心地固坐标.jpg}
+\caption{2022年11月24日0时-8时测站地心地固坐标}
+\end{figure}
+
+测站坐标解算后求均值为【-2267804.3454 5009342.3672 3220991.7026】，与接收机坐标真值【-2267804.5263 5009342.3723 3220991.8632】差异极小，且都在一米之内，上下波动幅度大约在$\pm5m$，可以初步说明程序的解算较为准确。
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时测站高.jpg}
+\caption{2022年11月24日0时-8时测站高}
+\end{figure}
+
+从高程的变化图可以看出，高程虽然也集中在40m-44m的区间内，但是仍然有某些历元出现较大偏差，波动幅度达到了$\pm10m$，猜测可能是由于对流层改正不够完全所致。
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时测站速度.jpg}
+\caption{2022年11月24日0时-8时测站速度}
+\end{figure}
+
+速度图像表现为在真值0附近变化剧烈的白噪声，也比较符合实际情况。
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时接收机钟差.jpg}
+\caption{2022年11月24日0时-8时接收机钟差}
+\end{figure}
+接收机钟差曲线也表现为变化剧烈的噪声，符合实际情况。其中也可以看出BDS的钟差比GPS钟差系统性偏大。
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时PDOP.jpg}
+\caption{2022年11月24日0时-8时PDOP}
+\end{figure}
+定位所得PDOP值也大约在1.2-2.6的区间内，说明精度比较能满足定位要求。
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时sigma.jpg}
+\caption{2022年11月24日0时-8时sigma}
+\end{figure}
+从定位的sigma可以得知其解算结果比较符合要求。而测速的sigma0大多在0.1以下，说明测速结果精度很高。
+
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时卫星个数.jpg}
+\caption{2022年11月24日0时-8时卫星个数}
+\end{figure}
+
+由卫星数量图可以得知，大部分历元的有效卫星数都在16颗以上，说明这组数据的观测条件较好，数据比较可信。
+\newpage
+
+将解得坐标转为以接收机真值为原点的站心坐标系下坐标（ENU东北天坐标系），也即定位结果在ENU方向上的误差。站心标准真值为【-2267804.5263;5009342.3723;3220991.8632】。
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时ENU方向误差.jpg}
+\caption{2022年11月24日0时-8时ENU方向误差}
+\end{figure}
+发现高程方向误差明显大于其他两个方向上的误差。
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{2022年11月24日0时-8时ENU下误差序列.jpg}
+\caption{2022年11月24日0时-8时ENU下误差序列散点图}
+\end{figure}
+
+转化后的EMU坐标（误差）的均方根误差（RMSE），也即均方根值（真值为0）为
+\begin{table}[H]
+\centering
+\begin{tblr}{ccc}
+\hline
+RMSE(E)&RMSE(N)&RMSE(U)\\
+\hline
+1.001541&1.141801&2.279551\\
+\hline
+\end{tblr}
+\end{table}
+
+推测造成高程方向上误差偏大的原因可能是由于对流层误差改正不完全，观测噪声，多路径效应的综合影响。
+
+
+\section{体会与心得}
+经过这半学期的课程教学和亲自动手编程训练，可以说编程能力和水平有了可观的成长。对C和C++这两门编程语言的认识和理解较以前清晰深刻了不少。
+
+一开始听说这门课需要从C语言开始编程时，还以为要重新学习一门新的语言。后来才发现，其实我之前一直用的根本就是C语言，即使项目建的是C++或是C\#，但是它们的优化和特点完全没有用上，只是套了一层外壳，本质上写的还是面向过程的代码和语句。在过去面对课程中布置的编程作业时，大多数情况选择了使用了C\#窗体应用项目，利用窗体的在界面上的区域和功能的划分，恰好实现了分模块分功能的需求。而每一个控件的命令就是动辄上百行的代码和一层套一层的循环，杂乱无章，可读性很差，可重复利用性极低，逻辑混乱，编完后第二天再看也得花一定时间才能找到当时写程序的思路和逻辑。结构体和指针也是从没接触过，连自己编写的函数都很少使用，更不用说类与对象了。
+
+随着课程的进行和开始着手按模块进行编程，开始使用结构体和函数，考虑整个函数的应用性和功能。之后又由于程序应用的需要，不断看书查资料接触了很多以前没用过的C++特性和语法，其中就包括vector类的使用。每当学到新的方法和先进的思想时，又得花大量时间把原来老旧的代码更新换代，应用更加简洁高效的功能和语法。整个过程像是不断地把一个施工中的建筑的部分构造粉碎重建，用更加上乘有品质的材料将其替换，并且还得保证整个建筑不能因此而崩溃。
+
+除了编程能力本身的不足和限制外，对整个卫星定位过程的原理和知识掌握的不够也是一个导致进度迟缓不断遭遇瓶颈的原因。比如解码解出来的东西以后要怎么用等等问题，因为对全局的任务不够清楚，导致局部的函数不知道要怎么写才好。不过，这确实也是一个无可奈何的过程，只有亲自经历一遍在程序中看不到预期结果再去研究原理，之后再对代码修修改改的过程后，才能对整个流程有更加深刻的印象和理解。
+
+就这样经过非常波折的领悟和学习的过程中，程序的大厦也依照预期迎来了竣工之日。当将测试用一行行打上注释的绿色输出代码，从程序中整个删除时，整个屏幕上的代码瞬间变得简洁清晰，直观明了，像是建筑终于完成了灰头土脸尘烟漫天的施工，终于将丑陋的脚手架从身上解除拆卸丢弃一旁，开始准备在阳光下变得光彩夺目熠熠生辉，还是十分有成就感的。
+
+除了在能力上的提升，更重要的是编程的思想和意识也随之进步，编程习惯也开始逐渐形成。现在开始写程序时就会想，这样写是最优的吗？有没有更好的写法？有没有更方便的算法做到又语言简洁又执行效率高。包括在写这篇报告的过程中，也找到了几处代码中可以完善的地方，并加以修正了。
+
+当然，因为能力和认识的有限，本程序依然会有很多有待完善的地方和可能面对复杂或极端的数据才会暴露出的bug。现在掌握和学习到的知识，也只是C和C++的冰山一角。以后本人也会继续努力，向着能独当一面的程序员和学者不断前进！
+
+
+
+
+
+\end{document}

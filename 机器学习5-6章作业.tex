@@ -1,0 +1,349 @@
+\documentclass{ctexart}
+
+\usepackage{enumerate}
+\usepackage{amsmath}%bmatrix矩阵
+\usepackage{tabularray}%表格
+\usepackage{float}%浮动环境
+\usepackage{graphicx}%图像
+\usepackage{bm}
+\usepackage{geometry}
+\usepackage{booktabs}%三条表格划线命令
+
+\geometry{a4paper,scale=0.7}
+\begin{document}
+\section*{第5章《决策树》习题}
+\subsection*{名词解释}
+\begin{enumerate}[(1)]
+\item 熵和条件熵\\
+"信息熵"(information entropy) 是度量样本集合纯度最常用的一种指标.熵越小纯度越高。假定当前样本集合D中第k类样本所占的比例为$p_k(k=1,2,...)$,则D的信息熵定义为
+\begin{equation*}
+Ent(D)=-\sum\limits^{\bm{|\gamma}|}\limits_{k=1}p_klog_2p_k
+\end{equation*}
+对于某属性a，若按a进行划分可将样本划分为V个集合，计算每个集合的信息熵并根据每个集合中所含样本数的多少赋权重并求和，即为在属性a条件下的条件熵。
+\begin{equation*}
+Ent(D|a)=\sum\limits^V\limits_{v=1}\frac{|D^v|}{|D|}Ent(D^v)
+\end{equation*}
+\item 信息增益\\
+特征a对样本集D的信息增益定义为：样本集D的信息熵与给定特征a条件下D的条件熵之差。即
+\begin{equation*}
+Gain(D,a)=Ent(D)-Ent(D|a)=Ent(D)-\sum\limits^V\limits_{v=1}\frac{|D^v|}{|D|}Ent(D^v)
+\end{equation*}
+一般而言，信息增益越大，则意味着使用属性a来进行划分所获得的"纯
+度提升"越大.因此，我们可用信息增益来进行决策树的划分属性选择。
+\item 基尼指数\\
+CART 决策树  使用"基尼指数" 来选择划分属性.假定集合D中第k类样本所占的比例为$p_k(k=1,2,...)$,数据集D的纯度可用基尼值来度量.基尼指数越小越纯。
+\begin{equation*}
+Gini(D)=1-\sum\limits^{\bm{|\gamma}|}\limits_{k=1}p^2_k
+\end{equation*}
+\end{enumerate}
+
+\subsection*{根据下列样本，生成一个深度depth=3的最小二乘回归树并作图}
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|}
+	\hline
+	x&1&2&3&4&5&6&7&8&9&10\\
+	\hline
+	y&4.5	&4.75	&4.91&5.34&5.8&7.05&7.9&8.23&8.7&9.5\\
+	\hline
+	\end{tabular}
+\end{table}
+
+按两点中间进行数据划分，并计算两个划分区域后的均值和它们的平方误差和并做成表
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+	\hline
+	s&1.5&2.5&3.5&4.5&5.5&6.5&7.5&8.5&9.5\\
+	\hline
+	c1&4.5&4.63&4.72&4.88&5.06&5.39&5.75&	6.06&	6.35\\
+	\hline
+	c2&6.91&7.18&7.50&7.86&8.27&8.58&8.81&9.10&9.50\\
+	\hline
+	L(s)&25.01&19.80&13.97&8.80&4.38&5.80&10.57&15.45&21.32\\
+	\hline
+	\end{tabular}
+	\caption{y划分后结果}
+\end{table}
+
+可知第一次选择x=5.5划分区域。分为y1=[4.5 4.75 4.91 5.34 5.8],y2=[7.05 7.9 8.23 8.7 9.5]两部分。再次进行划分有
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|c|c|}
+	\hline
+	s&1.5&2.5&3.5&4.5\\
+	\hline
+	c1&4.5&4.62&4.72&4.87\\
+	\hline
+	c2&5.2&5.35&5.57&5.8\\
+	\hline
+	L(s)&0.66&0.42&0.19&0.37\\
+	\hline
+	\end{tabular}
+	\caption{y1划分后结果}
+\end{table}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|c|c|}
+	\hline
+	s&6.5&7.5&8.5&9.5\\
+	\hline
+	c1&7.05&7.47&7.72&7.97\\
+	\hline
+	c2&8.58&8.81&9.1&9.5\\
+	\hline
+	L(s)&1.44&1.18&1.06&1.45\\
+	\hline
+	\end{tabular}
+	\caption{y2划分后结果}
+\end{table}
+可知第二次选择x=3.5与x=8.5为界限划分为y11=[4.5 4.75 4.91],y12=[5.34 5.8];
+y21=[7.05 7.9 8.23],y22=[8.7 9.5].
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|}
+	\hline
+	s&1.5&2.5\\
+	\hline
+	c1&4.5&4.62\\
+	\hline
+	c2&4.83&4.91\\
+	\hline
+	L(s)&0.012&0.03\\
+	\hline
+	\end{tabular}
+	\caption{y11划分后结果}
+\end{table}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|}
+	\hline
+	s&6.5&7.5\\
+	\hline
+	c1&7.05&7.47\\
+	\hline
+	c2&8.06&8.23\\
+	\hline
+	L(s)&0.05&0.36\\
+	\hline
+	\end{tabular}
+	\caption{y21划分后结果}
+\end{table}
+由上表可知y11,y21的划分点为x=1.5,x=6.5。y12,y22直接使用二者中点来划分。即x=4.5,x=9.5。
+作图如下：
+\begin{figure}[H]
+\includegraphics[height=12cm,width=0.9\linewidth]{第五章作业决策树回归.jpg}
+\caption{决策树回归图}
+\end{figure}
+\newpage
+\subsection*{对下表分别用ID3和CART算法生成决策树（要求写出详细的计算步骤）。}
+\begin{figure}[H]
+\includegraphics[height=13cm,width=1.0\linewidth]{第五章作业决策树表格}
+\caption{决策树表格}
+\end{figure}
+(1)使用ID3算法生成决策树。
+对整个数据集D，信息熵为：
+\begin{align*}%align可以使用&来对齐的多行公式，gather默认居中
+Ent(D)&=-\frac{12}{18}log_2\frac{12}{18}-\frac{6}{18}log_2\frac{6}{18}\\
+ &=0.918
+\end{align*}
+计算四个特征的信息增益：
+\begin{align*}
+Gain(D,\mbox{年龄})&=Ent(D)-[\frac{7}{18}(-\frac{4}{7}log_2\frac{4}{7}-\frac{3}{7}log_2\frac{3}{7})\\&+\frac{6}{18}(-\frac{4}{6}log_2\frac{4}{6}-\frac{2}{6}log_2\frac{2}{6})+\frac{5}{18}(-\frac{4}{5}log_2\frac{4}{5}-\frac{1}{5}log_2\frac{1}{5})]\\
+&=0.918-(0.383+0.306+0.200)\\
+&=0.029
+\end{align*}
+
+\begin{align*}
+Gain(D,\mbox{有工作})&=Ent(D)-[\frac{8}{18}(-\frac{8}{8}log_2\frac{8}{8}-\frac{0}{8}log_2\frac{0}{8})+\frac{10}{18}(-\frac{4}{10}log_2\frac{4}{10}-\frac{6}{10}log_2\frac{6}{10})]\\
+&=0.918-(0+0.539)\\
+&=0.379
+\end{align*}
+
+\begin{align*}
+Gain(D,\mbox{有房子})&=Ent(D)-[\frac{9}{18}(-\frac{9}{9}log_2\frac{9}{9}-\frac{0}{9}log_2\frac{0}{9})+\frac{9}{18}(-\frac{3}{9}log_2\frac{3}{9}-\frac{6}{9}log_2\frac{6}{9})]\\
+&=0.918-(0+0.459)\\
+&=0.459
+\end{align*}
+
+\begin{align*}
+Gain(D,\mbox{信贷情况})&=Ent(D)-[\frac{5}{18}(-\frac{5}{5}log_2\frac{5}{5}-\frac{0}{5}log_2\frac{0}{5})\\&+\frac{8}{18}(-\frac{6}{8}log_2\frac{6}{8}-\frac{2}{8}log_2\frac{2}{8})+\frac{5}{18}(-\frac{1}{5}log_2\frac{1}{5}-\frac{4}{5}log_2\frac{4}{5})]\\
+&=0.918-(0+0.360+ 0.200)\\
+&=0.358
+\end{align*}
+故第一步选择是否有房子作为最优分类。有房子则直接归为是类，无房子则进行下一步讨论。设无房子集合为$D_1$,$Ent(D_1)=0.918$。计算其他属性对其信息增益。
+
+\begin{align*}
+Gain(D_1,\mbox{年龄})&=Ent(D)-[\frac{4}{9}(-\frac{1}{4}log_2\frac{1}{4}-\frac{3}{4}log_2\frac{3}{4})\\&+\frac{2}{9}(-\frac{0}{2}log_2\frac{0}{2}-\frac{2}{2}log_2\frac{2}{2})+\frac{3}{9}(-\frac{2}{3}log_2\frac{2}{3}-\frac{1}{3}log_2\frac{1}{3})]\\
+&=0.918-(0.360+0+0.306)\\
+&=0.252
+\end{align*}
+
+\begin{align*}
+Gain(D_1,\mbox{有工作})&=Ent(D)-[\frac{3}{9}(-\frac{3}{3}log_2\frac{3}{3}-\frac{0}{3}log_2\frac{0}{3})+\frac{6}{9}(-\frac{0}{6}log_2\frac{0}{6}-\frac{6}{6}log_2\frac{6}{6})]\\
+&=0.918-(0+0)\\
+&=0.918
+\end{align*}
+
+这样一来，易判断信贷情况的信息增益不如有无工作的信息增益，故决策树构造完成。如在此分支中有工作则归为是，无工作归为否类。
+
+（2）使用CART算法生成决策树。由于是二分类，故基尼系数计算可以简化为：
+\begin{align*}
+Gini(D)&=1-\sum\limits^{\bm{|\gamma}|}\limits_{k=1}p^2_k\\
+&=1-p_1^2-(1-p_1)^2\\
+&=2p_1-2p_1^2\\
+&=2p_1p_2
+\end{align*}
+计算每个分类的基尼系数，有
+\begin{align*}
+Gini(D,\mbox{年龄})&=\frac{7}{18}(2\times\frac{4}{7}\times\frac{3}{7})+\frac{6}{18}(2\times\frac{4}{6}\times\frac{2}{6})+\frac{5}{18}\times(2\times\frac{4}{5}\times\frac{1}{5})]\\
+&=0.427
+\end{align*}
+
+\begin{align*}
+Gini(D,\mbox{有工作})&=\frac{8}{18}(2\times\frac{8}{8}\times\frac{0}{8})+\frac{10}{18}(2\times\frac{4}{10}\times\frac{6}{10})\\
+&=0.266
+\end{align*}
+
+\begin{align*}
+Gini(D,\mbox{有房子})&=\frac{9}{18}(2\times\frac{9}{9}\times\frac{0}{9})+\frac{9}{18}(2\times\frac{3}{9}\times\frac{6}{9})\\
+&=0.222
+\end{align*}
+
+\begin{align*}
+Gini(D,\mbox{信贷情况})&=\frac{5}{18}(2\times\frac{5}{5}\times\frac{0}{5})+\frac{8}{18}(2\times\frac{6}{8}\times\frac{2}{8})+\frac{5}{18}\times(2\times\frac{1}{5}\times\frac{4}{5})]\\
+&=0.255
+\end{align*}
+
+故选基尼系数最小的是否有房子作为最优分类，若有，则直接归为是类，否则继续分类。\\由上题经验先计算可知有无工作的基尼系数。
+
+\begin{align*}
+Gini(D_1,\mbox{有工作})&=\frac{3}{9}(2\times\frac{3}{3}\times\frac{0}{3})+\frac{6}{9}(2\times\frac{0}{6}\times\frac{6}{6})\\
+&=0
+\end{align*}
+易知另外两个属性的基尼系数均大于0，故选择有无工作做分类条件。有则归为是，否则归为否，决策树构造完成。
+
+\section*{第6章《集成学习和随机森林》习题}
+
+\subsection*{名词解释}
+\begin{enumerate}[(1)]
+\item 同质集成\\
+集成中只包含同种类型的个体学习器.
+\item 异质集成\\
+只要是使用多个学习器来解决问题，就可以认为符合集成学习的广义形式。个体学习器由不同的学习算法生成，不存在“基学习算法”。
+\item 基学习器\\
+同质集成中的个体学习器称为“基学习器”，相应的学习算法称为“基学习算法”。
+\end{enumerate}
+
+\subsection*{复习Adaboost算法，试推导样本$x_i$第t轮的权重与第t+1轮权重的迭代关系。}
+
+已知错误率$e_t$,且有$e_t$为所有分类错误样本权重之和。设分类正确数为a,分类错误数为b，有
+\begin{equation*}
+e_t=\sum\limits^b\omega_{ti}
+\end{equation*}
+
+学习器权重系数计算公式如下：
+\begin{equation*}
+\alpha_t=\frac{1}{2}ln\frac{1-e_t}{e_t}
+\end{equation*}
+
+用于规范化求出的新一轮权重的系数$Z_t$,等于所有新一轮求出的权重之和，即：
+\begin{align*}
+Z_t&=\sum\omega_{ti}e^{-\alpha_ty_iG_t(x_i)}\\
+&=\sum\limits^a\omega_{ti}e^{-\alpha_t}+\sum\limits^b\omega_{ti}e^{\alpha_t}\\
+&=\sum\limits^a\omega_{ti}\sqrt{\frac{e_t}{1-e_t}}+\sum\limits^b\omega_{ti}\sqrt{\frac{1-e_t}{e_t}}\\
+&=(1-e_t)\sqrt{\frac{e_t}{1-e_t}}+e_t\sqrt{\frac{1-e_t}{e_t}}\\
+&=2\sqrt{e_t}\sqrt{1-e_t}
+\end{align*}
+
+下面推导$\omega_{t+1}$与$\omega_{t}$的关系
+,分类正确时有：
+
+\begin{align*}
+\omega_{t+1,i}&=\frac{\omega_{t,i}}{Z_t}e^{-\alpha_t}\\
+&=\frac{\omega_{w,t}}{Z_t}\sqrt{\frac{e_t}{1-e_t}}\\
+&=\frac{\omega_{w,t}\sqrt{\frac{e_t}{1-e_t}}}{2\sqrt{e_t}\sqrt{1-e_t}}\\
+&=\frac{\omega_{t,i}}{2(1-e_t)}
+\end{align*}
+分类错误时有：
+\begin{align*}
+\omega_{t+1,i}&=\frac{\omega_{t,i}}{Z_t}e^{\alpha_t}\\
+&=\frac{\omega_{w,t}}{Z_t}\sqrt{\frac{1-e_t}{e_t}}\\
+&=\frac{\omega_{w,t}\sqrt{\frac{1-e_t}{e_t}}}{2\sqrt{e_t}\sqrt{1-e_t}}\\
+&=\frac{\omega_{t,i}}{2e_t}
+\end{align*}
+证毕
+\subsection*{给定如图表所示的训练样本，弱学习器采用平行于坐标轴的直线h1、h2和h3，请用Adaboost算法的实现强分类过程}
+\begin{figure}[H]
+\includegraphics[height=12cm,width=1.0\linewidth]{第六章作业Adaboost方法.png}
+\caption{Adaboost方法训练样本示意图}
+\end{figure}
+
+首轮的样本为等权的，$\omega=0.1$.首先计算学习器h1的错误率。为
+\begin{equation*}
+e_1=3\times0.1=0.3
+\end{equation*}
+
+学习器权重为：
+\begin{align*}
+\alpha_1=\frac{1}{2}ln\frac{1-e_1}{e_1}=0.423
+\end{align*}
+更新样本权重有,对正确样本有：
+\begin{equation*}
+\omega_2=\frac{\omega_1}{2(1-e_1)}=0.07
+\end{equation*}
+分类错误样本有：
+\begin{equation*}
+\omega_2=\frac{\omega_1}{2e_1}=0.166
+\end{equation*}
+
+第二轮学习器的错误率$e_2$为:
+\begin{equation*}
+e_2=3\times0.07=0.21
+\end{equation*}
+学习器权重为：
+\begin{equation*}
+\alpha_2=\frac{1}{2}ln\frac{1-e_2}{e_2}=0.662
+\end{equation*}
+
+新一轮样本权重，对正确样本1,2,9,10有：
+\begin{equation*}
+\omega_3=\frac{\omega_2}{2(1-e_2)}= 0.044
+\end{equation*}
+
+对正确样本7,5,8有：
+\begin{equation*}
+\omega_3=\frac{\omega_2}{2(1-e_2)}= 0.105
+\end{equation*}
+
+对错误样本3,4,6有：
+\begin{equation*}
+\omega_3=\frac{\omega_2}{2e_2}= 0.166
+\end{equation*}
+
+第三轮学习器错误率$e_3$为:
+\begin{equation*}
+e_3=0.044\times3=0.132
+\end{equation*}
+
+学习器权重为：
+\begin{equation*}
+\alpha_3=\frac{1}{2}ln\frac{1-e_3}{e_3}=0.941
+\end{equation*}
+
+这样，构造出的强分类器H(X)为：
+\begin{equation*}
+H(X)=0.423h_1(X)+0.662h_2(X)+0.941h_3(X)
+\end{equation*}
+
+
+
+
+
+
+\end{document}
