@@ -6,6 +6,9 @@
 \usepackage{float}
 \usepackage{tabularray}%表格
 \usepackage{listings}%插入关键字高亮的代码
+\usepackage{nicematrix}
+\usepackage{multirow}%\multicolumn{3}{c}{\multirow{3}{*}{\large $R_{3\times3}$}}  \multicolumn{要合并的列数}{对齐方式}{内容}  \multirow{要合并的行数}{*默认}{内容}
+
 \lstset{basicstyle=\small,
 basicstyle=\tt,
 keywordstyle=\color{blue},
@@ -31,7 +34,7 @@ columns=flexible,}
     \textbf{班级:} & 导航工程3班 \\ \cline{2-2}
     \textbf{姓名:} & 叶通 \\  \cline{2-2}
     \textbf{学号:} & 2020302142138 \\ \cline{2-2}
-    \textbf{时间:} & \today \\ \cline{2-2}
+    \textbf{时间:} & 2022年12月26日 \\ \cline{2-2}
     \end{tabular}
 \end{table}
 
@@ -225,7 +228,7 @@ n_{0}=\sqrt{\frac{\mu}{A^3}}
 \begin{equation}
 t_{k}=t-t_{o e}
 \end{equation}
-t 为信号发射时的时间。
+t 为信号发射时的时间。\\
 3. 对平均运动角速度进行改正:
 \begin{equation}
 n=n_{0}+\Delta_{n}
@@ -233,18 +236,22 @@ n=n_{0}+\Delta_{n}
 4. 计算平近点角:
 \begin{equation}
 M_{k}=M_{0}+n t_{k}
+\label{eq:13}
 \end{equation}
 5. 计算偏近点角
 \begin{equation}
 M_{k}=E_{k}-e \sin E_{k}
+\label{eq:14}
 \end{equation}
 6. 计算真近点角:
 \begin{equation}
 v_{k}=\arctan \frac{\sqrt{1-e^{2}} \sin E_{k}}{ \cos E_{k}-e}
+\label{eq:15}
 \end{equation}
 7. 计算升交角距:
 \begin{equation}
 \Phi_{k}=v_{k}+\omega
+\label{eq:16}
 \end{equation}
 8. 计算二阶改正数:
 \begin{equation}
@@ -252,30 +259,36 @@ v_{k}=\arctan \frac{\sqrt{1-e^{2}} \sin E_{k}}{ \cos E_{k}-e}
 \delta_{u_{k}}=C_{u s} \sin 2 \Phi_{k}+C_{u c} \cos 2 \Phi_{k} \\
 \delta_{r_{k}}=C_{r s} \sin 2 \Phi_{k}+C_{r c} \cos 2 \Phi_{k} \\
 \delta_{i_{k}}=C_{i s} \sin 2 \Phi_{k}+C_{i c} \cos 2 \Phi_{k}
+\label{eq:17}
 \end{gathered}
 \end{equation}
 9.计算升交角距
 \begin{equation}
 u_k=\Phi_{k}+\delta_{u_{k}}
+\label{eq:18}
 \end{equation}
 10. 计算经过改正的向径:
 \begin{equation}
 r_{k}=A\left(1-e \cos E_{k}\right)+\delta_{r_{k}}
+\label{eq:19}
 \end{equation}
 11. 计算经过改正的轨道倾角:
 \begin{equation}
 i+k=i_{0}+\delta_{i_{k}}+(I D O T) t_{k}
+\label{eq:20}
 \end{equation}
 12. 计算卫星在轨道平面上的位置:
 \begin{equation}
 \begin{gathered}
 x_{k}^{\prime}=r_{k} \cos u_{k} \\
 y_{k}^{\prime}=r_{k} \sin u_{k}
+\label{eq:21}
 \end{gathered}
 \end{equation}
 13. 计算改正后的升交点经度:
 \begin{equation}
-\Omega_{k}=\Omega_{0}+\left(\dot{\Omega}-\dot{\Omega}_{e}\right) t_{k}-\Omega_{e} t_{o} e
+\Omega_{k}=\Omega_{0}+\left(\dot{\Omega}-\dot{\Omega}_{e}\right) t_{k}-\Omega_{e} t_{oe}
+\label{eq:22}
 \end{equation}
 14. 计算在地固坐标系下的位置:
 \begin{equation}
@@ -283,12 +296,194 @@ y_{k}^{\prime}=r_{k} \sin u_{k}
 x_{k}=x_{k}^{\prime} \cos \Omega_{k}-y_{k}^{\prime} \cos i_{k} \sin \Omega_{k} \\
 y_{k}=x_{k}^{\prime} \sin \Omega_{k}+y_{k}^{\prime} \cos i_{k} \cos \Omega_{k} \\
 z_{k}=y_{k}^{\prime} \sin i_{k}
+\label{eq:23}
 \end{gathered}
 \end{equation}
 
 \subsubsection{任意时刻卫星位置计算程序设计与实现}
 分别为GPS与BDS卫星写两个计算卫星位置函数，以下以GPS卫星位置计算为例。
 输入\textbf{单个GPS星历}，GPS时表示的时间，计算一个卫星位置结果结构体。按\ref{2.6.1}中所提到的各项公式计算卫星位置，并且顺带计算卫星的速度，钟差与钟速。计算结果都存入卫星位置结果结构体中。
+
+\subsubsection{任意时刻卫星速度计算}
+以下从卫星位置计算出发，推导卫星速度的计算公式，并以此推导北斗的GEO卫星的速度计算公式。
+重新明确以下符号：
+\begin{itemize}
+\item n平均运动角速度
+\item $M_k$平近点角
+\item $E_k$偏近点角
+\item $v_k$真近点角
+\item $\omega$近地点角距
+\item $\Phi_k$升交角距
+\item $u_k$改正后升交角距
+\item $r_k$改正后向径
+\item $\Omega_0$ \hspace{0.4cm}$(\Omega_{toe}-\Omega_{week})$  toe时的升交点赤经$\Omega_{toe}$减本周起始时刻格林尼治恒星时$\Omega_{week}$.
+\item $\dot{\Omega}$升交点赤经变化率
+\item $\dot{\Omega}_e$地球自转角速度
+\item $\Omega_k$升交点经度
+\item $t_k$  （t-toe）现在时间减去星历参考时刻
+\end{itemize}
+
+下面为GPS卫星及BDS的非GEO卫星速度推导。
+对式\eqref{eq:23}两边同时对t求导，其中右边根据求导法则，分别对$x_k^{\prime},y_k^{\prime},\Omega_k,i_k(I_k)$求导，并写成矩阵形式，有
+\begin{equation}
+\begin{bmatrix}
+\dot{x}_k\\
+\dot{y}_k\\
+\dot{z}_k
+\end{bmatrix}=\begin{bmatrix}
+\cos\Omega_k&-\cos i_k\sin\Omega_k&-x_k^{\prime}\sin\Omega_k-y_k^{\prime}\cos i_k\cos\Omega_k&y_k^{\prime}\sin i_k\sin\Omega_k\\
+\sin\Omega_k&\cos i_k\cos\Omega_k&x_k^{\prime}\cos\Omega_k-y_k^{\prime}\cos i_k\sin\Omega_k&-y_k^{\prime}\sin i_k\cos\Omega_k\\
+0&\sin i_k&0&y_k^{\prime}\cos i_k
+\end{bmatrix}\begin{bmatrix}
+\dot{x}_k^{\prime}\\
+\dot{y}_k^{\prime}\\
+\dot{\Omega}_k\\
+\dot{I}_k
+\end{bmatrix}
+\label{eq:24}
+\end{equation}
+
+由式\eqref{eq:21}两边求导可得
+\begin{equation}
+\begin{gathered}
+\dot{x}_k^{\prime}=\dot{r}_k\cos u_k-r_k\dot{u}_k\sin u_k\\
+\dot{y}_k^{\prime}=\dot{r}_k\sin u_k+r_k\dot{u}_k\cos u_k
+\end{gathered}
+\end{equation}
+
+由式\eqref{eq:22}求导有
+\begin{equation}
+\dot{\Omega}_k=\dot{\Omega}-\dot{\Omega}_e
+\end{equation}
+
+对式\eqref{eq:20}求导有
+\begin{equation}
+\begin{gathered}
+i_k=i_0+\delta i_k+IDOT\cdot t_k\\
+i_k=i_0+C_{is}\sin(2\Phi_k)+C_{ic}\cos(2\Phi_k)+IDOT\cdot t_k\\
+\dot{I}_k=2C_{is}\cos(2\Phi_k)\dot{\Phi}_k-2C_{ic}\sin(2\Phi_k)\dot{\Phi}_k+IDOT
+\end{gathered}
+\end{equation}
+
+以此类推，对式\eqref{eq:18}求导
+\begin{equation}
+\dot{u}_k=\dot{\Phi}_k+2C_{us}\cos(2\Phi_k)\dot{\Phi}_k-2C_{uc}\sin(2\Phi_k)\dot{\Phi}_k
+\end{equation}
+
+对式\eqref{eq:19}求导
+\begin{equation}
+\begin{gathered}
+r_k=A(1-e\cos E_k)+\delta r_k\\
+\dot{r}_k=Ae\sin E_k\dot{E}_k+2C_{rs}\cos(2\Phi_k)\dot{\Phi}_k-2C_{rc}\sin(2\Phi_k)\dot{\Phi}_k
+\end{gathered}
+\end{equation}
+
+对式\eqref{eq:16}求导，将其完全展开并化简可以得(这里与课件上的不同)
+\begin{equation}
+\dot{\Phi}_k=\dot{v}_k=\frac{\sqrt{1-e^2}}{1-e\cos E_k}\cdot \dot{E}_k
+\end{equation}
+
+继续求导下去，由式\eqref{eq:14}可得
+\begin{equation}
+\begin{gathered}
+M_0+n\cdot t_k=E_k-\sin E_k e\\
+n=\dot{E}_k-e\cos E_k \dot{E}_k\\
+\dot{E}_k=\frac{n}{1-e\cos E_k}
+\end{gathered}
+\end{equation}
+
+至此所有推导结束，所有的量都可以通过已知量表达出来。
+
+接下来进行北斗GEO卫星的速度计算公式的推导。
+从北斗GEO卫星的位置计算公式着手。GEO的特定坐标系定义为在星历参考时刻toe的地球坐标系CGCS2000围绕X轴逆时针旋转5°.历元升交点在特定坐标系下的经度$\Omega_k$为现在的升交点赤经减去toe时的格林尼治恒星时：
+\begin{equation}
+\begin{gathered}
+\Omega_k=\Omega_{toe}+\dot{\Omega}t_k-(\Omega_{week}+\dot{\Omega}_etoe)\\
+\Omega_k=\Omega_0+\dot{\Omega}t_k-\dot{\Omega}_etoe
+\end{gathered}
+\end{equation}
+
+在特定坐标系下坐标计算公式如下，与GPS卫星的最后一步一致
+\begin{equation}
+\begin{gathered}
+X_{GK}=x_{k}^{\prime} \cos \Omega_{k}-y_{k}^{\prime} \cos i_{k} \sin \Omega_{k} \\
+Y_{Gk}=x_{k}^{\prime} \sin \Omega_{k}+y_{k}^{\prime} \cos i_{k} \cos \Omega_{k} \\
+Z_{GK}=y_{k}^{\prime} \sin i_{k}
+\label{eq:33}
+\end{gathered}
+\end{equation}
+此时对$\Omega_k$求导得
+\begin{equation}
+\dot{\Omega}_k=\dot{\Omega}
+\end{equation}
+对式\eqref{eq:33}求导，所得结果除了$\dot{\Omega}_k$其他完全与式\eqref{eq:24}一致。
+\begin{equation}
+\begin{bmatrix}
+\dot{X}_{GK}\\
+\dot{Y}_{GK}\\
+\dot{Z}_{GK}
+\end{bmatrix}=\begin{bmatrix}
+\cos\Omega_k&-\cos i_k\sin\Omega_k&-x_k^{\prime}\sin\Omega_k-y_k^{\prime}\cos i_k\cos\Omega_k&y_k^{\prime}\sin i_k\sin\Omega_k\\
+\sin\Omega_k&\cos i_k\cos\Omega_k&x_k^{\prime}\cos\Omega_k-y_k^{\prime}\cos i_k\sin\Omega_k&-y_k^{\prime}\sin i_k\cos\Omega_k\\
+0&\sin i_k&0&y_k^{\prime}\cos i_k
+\end{bmatrix}\begin{bmatrix}
+\dot{x}_k^{\prime}\\
+\dot{y}_k^{\prime}\\
+\dot{\Omega}_k\\
+\dot{I}_k
+\end{bmatrix}
+\end{equation}
+又因为
+\begin{equation}
+\begin{bmatrix}
+X_k\\
+Y_k\\
+Z_k
+\end{bmatrix}=R_Z(\dot{\Omega}_et_k)R_X(-5°)\begin{bmatrix}
+X_{GK}\\
+Y_{GK}\\
+Z_{GK}
+\end{bmatrix}
+\end{equation}
+即
+\begin{small}
+\begin{equation}
+\begin{bmatrix}
+X_k\\
+Y_k\\
+Z_k
+\end{bmatrix}=\begin{bmatrix}
+\cos(\dot{\Omega}_et_k)&\sin(\dot{\Omega}_et_k)\cos(-5°)&\sin(\dot{\Omega}_et_k)\sin(-5°)\\
+-\sin(\dot{\Omega}_et_k)&\cos(\dot{\Omega}_et_k)\cos(-5°)&\cos(\dot{\Omega}_et_k)\sin(-5°)\\
+0&-\sin(-5°)&\cos(-5°)
+\end{bmatrix}\begin{bmatrix}
+X_{GK}\\
+Y_{GK}\\
+Z_{GK}
+\end{bmatrix}
+\label{eq:37}
+\end{equation}
+\end{small}
+仿照对式\eqref{eq:23}求导的方法对式\eqref{eq:37}求导，右边分别对变量$X_{GK},Y_{GK},Z_{GK},t$求导，并写成矩阵形式
+\begin{small}
+\begin{equation}
+\begin{bmatrix}
+\dot{X}_k\\
+\dot{Y}_k\\
+\dot{Z}_k
+\end{bmatrix}=\begin{bmatrix}
+\multicolumn{3}{c}{\multirow{3}{*}{\large $R_{3\times3}$}}&-X_{GK}\sin(\dot{\Omega}_et_k)\dot{\Omega}_e+Y_{GK}\cos(-5°)\cos(\dot{\Omega}_et_k)\dot{\Omega}_e+Z_{GK}\sin(-5°)\cos(\dot{\Omega}_et_k)\dot{\Omega}_e\\
+\multicolumn{3}{c}{}&-X_{GK}\cos(\dot{\Omega}_et_k)\dot{\Omega}_e-Y_{GK}\cos(-5°)\sin(\dot{\Omega}_et_k)\dot{\Omega}_e-Z_{GK}\sin(-5°)\sin(\dot{\Omega}_et_k)\dot{\Omega}_e\\
+\multicolumn{3}{c}{}&0
+\end{bmatrix}\begin{bmatrix}
+\dot{X}_{GK}\\
+\dot{Y}_{GK}\\
+\dot{Z}_{GK}\\
+1
+\end{bmatrix}
+\end{equation}
+\end{small}
+其中$\mathbf{R}_{3\times3}$即为式\eqref{eq:37}等式右边的第一个矩阵。这样一来北斗GEO卫星的速度已经求出。
 
 \subsubsection{信号发射时刻的卫星位置计算算法}
 由于信号传递需要时间，所以不能直接由观测时刻的时间计算卫星位置。观测方程中的卫星位置实际上是在一段时间前的信号发射时刻位置，伪距实际上是不同时空下的一段长度。由于伪距P=(表面时$t_R$-表面时$t^S$)$\times c$,故可用伪距计算卫星钟表面时。
@@ -324,14 +519,14 @@ P=\rho+c\cdot\delta t_R-c\cdot \delta t^S +Trop
 其中$\rho$为几何距离，它等于
 \begin{equation}
 \rho=\sqrt{(X^i-X)^2+(Y^i-Y)^2+(Z^i-Z)^2}
-\label{eq:28}
+\label{eq:43}
 \end{equation}
 
 设测站坐标和接收机钟差$c\cdot\delta t_R$(单位m)的初值为$X_0$、$Y_0$、$Z_0$、$T_0$。在($X_0$ $Y_0$ $Z_0$ $T_0$)处泰勒展开，并舍去高阶项有
 
 \begin{equation}
 P=\frac{X_0-X^i}{\rho_0}dX+\frac{Y_0-Y^i}{\rho_0}dY+\frac{Z_0-Z^i}{\rho_0}dZ+dT+\rho_0+T_0 - c\cdot\delta t^S+Trop
-\label{eq:29}
+\label{eq:44}
 \end{equation}
 
 将系数用$a_i$,$b_i$,$c_i$表示，将方程写成矩阵形式有
@@ -360,24 +555,24 @@ l_3\\
 \vdots\\
 l_n
 \end{bmatrix}
-\label{eq:30}
+\label{eq:45}
 \end{equation}
 
 其中常数项$l_i$为
 \begin{equation}
 l_i=P_i-(\rho_{0,i}+T_{0,i}-c\cdot\delta t^S_i+Trop_i)
 \end{equation}
-式\eqref{eq:30}即为
+式\eqref{eq:45}即为
 \begin{equation}
 \mathbf{v}=\mathbf{B}\mathbf{x}-\mathbf{l}
-\label{eq:32}
+\label{eq:47}
 \end{equation}
 
-考虑多个导航系统，式\eqref{eq:29}可以写为
+考虑多个导航系统，式\eqref{eq:44}可以写为
 
 \begin{equation}
 P=\frac{X_0-X^i}{\rho_0}dX+\frac{Y_0-Y^i}{\rho_0}dY+\frac{Z_0-Z^i}{\rho_0}dZ+dT^N+\rho_0+T^N_0 - c\cdot\delta t^S+Trop
-\label{eq:33}
+\label{eq:48}
 \end{equation}
 其中N$\in(GPS,BDS,GLONASS,GALILEO\cdots)$
 
@@ -411,7 +606,7 @@ l_3\\
 \vdots\\
 l_n
 \end{bmatrix}
-\label{eq:34}
+\label{eq:49}
 \end{equation}
 其中常数项$l_i$为
 \begin{equation}
@@ -419,7 +614,7 @@ l_i=P_i-(\rho_{0,i}+T^N_{0,i}-c\cdot\delta t^S_i+Trop_i)
 \end{equation}
 $N\in(GPS,BDS,GLONASS,GALILEO\cdots)$
 
-有最小二乘法则求解\eqref{eq:32}式，可得
+有最小二乘法则求解\eqref{eq:47}式，可得
 \begin{equation}
 \mathbf{x}=(\mathbf{B^T}\mathbf{P}\mathbf{B})^{-1}\mathbf{B}\mathbf{P}\mathbf{l}
 \end{equation}
@@ -433,11 +628,11 @@ SPP单点定位函数参数有观测数据结构体，卫星位置计算结果�
 
 随后进入迭代的循环。对每个卫星观测值进行循环（同时也是对卫星位置计算结果的循环，此时二者一一对应）。计算每个卫星的地球自转改正值，随后用其来计算卫星的高度角，对于高度角小于15°的卫星进行剔除（考虑到首次定位时迭代过程中偏差较大，首次迭代时不对卫星进行剔除）。计算对流层延迟。
 
-随后进行线性化后矩阵的构造。由于事先不知道观测值中会有几个导航系统的数据，\eqref{eq:34}中的矩阵行数和列数都是未知的，待求参数的个数也是未知的，为了灵活适应任意（最大四个）导航系统个数和任意组合的解算，本人使用了以下思想解决这个问题。
+随后进行线性化后矩阵的构造。由于事先不知道观测值中会有几个导航系统的数据，\eqref{eq:49}中的矩阵行数和列数都是未知的，待求参数的个数也是未知的，为了灵活适应任意（最大四个）导航系统个数和任意组合的解算，本人使用了以下思想解决这个问题。
 
 定义selector[4]={0,0,0,0}的数组。对观测值循环时，顺便确定导航系统的个数和分别是哪几个导航系统。按GPS,BDS,GLONASS,GALILEO的顺序对selector进行赋值，如此时若只有GPS和GLONASS两个系统，则selector=[1,0,1,0]。当确定导航系统数目，B矩阵,l矩阵,P矩阵的维数和待求参数个数随之确定\footnote{此时若待求参数小于方程（卫星）个数，return false}。用new动态分配出指定的大小并把B矩阵初始化为0矩阵后，对B矩阵赋值。
 
-对B矩阵的某行来说，前三列为按\eqref{eq:33}式线性化后的系数。之后，根据卫星的导航系统和selector的状态，对相应位置赋1值。若是GPS卫星则在第[ 2 + selector[0]]列赋1，BDS在第[2 + selector[0] + selector[1]]列赋1，GLONASS在第[2 + selector[0] + selector[1] + selector[2]]列赋1，GALILEO在第[2 + selector[0] + selector[1] + selector[2] + selector[3]]列赋1.这样一来就可以实现对不同系统的组合的B矩阵构造。例如selector=[1,0,1,0]，GPS在第[3]列的位置赋1，GLONASS在第[4]列赋1,未被赋值的都为初值0.
+对B矩阵的某行来说，前三列为按\eqref{eq:48}式线性化后的系数。之后，根据卫星的导航系统和selector的状态，对相应位置赋1值。若是GPS卫星则在第[ 2 + selector[0]]列赋1，BDS在第[2 + selector[0] + selector[1]]列赋1，GLONASS在第[2 + selector[0] + selector[1] + selector[2]]列赋1，GALILEO在第[2 + selector[0] + selector[1] + selector[2] + selector[3]]列赋1.这样一来就可以实现对不同系统的组合的B矩阵构造。例如selector=[1,0,1,0]，GPS在第[3]列的位置赋1，GLONASS在第[4]列赋1,未被赋值的都为初值0.
 以下为简化的代码示意图。
 \begin{lstlisting}[language=C]
 switch(Navigation_System)
@@ -466,7 +661,7 @@ break;
 \end{figure}
 \subsubsection{单点测速SPV算法}
 \label{2.7.3}
-对式\eqref{eq:28}两边同时对t求导后有
+对式\eqref{eq:43}两边同时对t求导后有
 
 \begin{equation}
 \dot{\rho}=\dfrac{(X^i-X)(\dot{X}^i-\dot{X})+(Y^i-Y)(\dot{Y}^i-\dot{Y})+(Z^i-Z)(\dot{Z}^i-\dot{Z})}{\rho}
@@ -486,7 +681,7 @@ dopp=\dfrac{X-X^i}{\rho}\dot{X}+\dfrac{Y-Y^i}{\rho}\dot{Y}+\dfrac{Z-Z^i}{\rho}\d
 
 由于接收机钟速应该是对各个系统都相同，故可以只设一个参数。
 
-将方程写成形如\eqref{eq:30}的矩阵形式有
+将方程写成矩阵形式有
 \begin{equation}
 \begin{bmatrix}
 v_1\\
