@@ -1,0 +1,802 @@
+\documentclass[codepkg=listings,theme=fancy]{course-report}
+\csrepset{
+  style={
+     graphics-path={{./figures}},
+	enname=true,
+  },
+  info={
+    csnumber=111111,
+    cstype=专业必修,
+    title=组合导航课程设计,
+    subtitle=GNSS-INS组合导航程序设计,
+    badge=logo.pdf,
+    academy=测绘学院,
+    major=导航工程,
+    teacher=朱峰,
+    class=导航3班,
+    name=叶通,
+    id=2020302142138,
+    date=2023年2月23日
+  }
+}
+%\usepackage{graphicx}
+%\usepackage[colorlinks=true,allcolors=red]{hyperref}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{float}
+%\usepackage{xcolor}
+\usepackage{tabularray}%表格
+\usepackage{listings}%插入关键字高亮的代码
+\usepackage{multirow}%\multicolumn{3}{c}{\multirow{3}{*}{\large $R_{3\times3}$}}  \multicolumn{要合并的列数}{对齐方式}{内容}  \multirow{要合并的行数}{*默认}{内容}
+\usepackage{bm}
+
+
+\lstset{basicstyle=\small,
+basicstyle=\ttfamily,
+keywordstyle=\color{blue},
+commentstyle=\color{green},
+frame=shadowbox,
+numbers=left,
+numberstyle=\tiny\color{red},
+columns=flexible,}
+%\usepackage{geometry}
+%\geometry{a4paper,scale=0.7}
+
+\begin{document}
+
+
+%\newpage
+%\thispagestyle{empty}
+%    \begin{center}
+%        \Huge\textbf{GNSS-INS组合导航程序设计报告}
+%    \end{center}
+%\vspace*{\fill}
+%
+%\begin{table}[h]
+%    \centering
+%    \large
+%    \begin{tabular}{cc}
+%    \textbf{课程名称:} & GNSS-INS组合导航程序设计报告 \\ \cline{2-2}
+%    \textbf{班级:} & 导航工程3班 \\ \cline{2-2}
+%    \textbf{姓名:} & 叶通 \\  \cline{2-2}
+%    \textbf{学号:} & 2020302142138 \\ \cline{2-2}
+%    \textbf{时间:} & 2023年2月16日 \\ \cline{2-2}
+%    \end{tabular}
+%\end{table}
+%
+%\newpage
+%\pagenumbering{Roman}
+%\setcounter{page}{1}
+%\tableofcontents
+%
+%\newpage
+%\setcounter{page}{1}
+%\pagenumbering{arabic}
+
+\chapter{程序设计概述}
+\section{程序设计内容}
+\begin{enumerate}
+\item 根据给定的一组高精度IMU数据、GNSS位置数据，进行GNSS-惯性导航松组合算法解算，导航结果与参考结果进行对比分析，验证自己的程序。
+\item 分析初始方差P0，过程噪声Q，观测噪声R的数值大小调节对状态收敛性的影响。
+\item 实现零速更新（ZUPT），非完整性约束（NHC），里程计更新（ODO），航向角更新（Heading）算法，分析观测更新间隔与观测方差设置的影响，并给出这些更新算法使用前后的效果对比与分析。
+\item 在GNSS正常以及模拟GNSS失锁时，分别加入NHC、ODO、NHC+ODO观测更新，对比其加入前后的位置、速度、姿态结果变化。其中，模拟5个失锁时长：10秒、30秒、60秒、90秒、120秒。
+\item 撰写课程报告，提交后采取线上面试再次考核。
+\end{enumerate}
+\section{程序设计要求}
+需提交作业文档（基本原理、实现细节和精度分析）及能够运行的源代码（Python, Matlab，C, C++语言选一种）
+
+\chapter{算法与程序设计}
+\section{GNSS-INS松组合算法简介}
+\subsection{系统状态方程}
+GNSS/INS 松组合常采用误差状态卡尔曼滤波（间接卡尔曼滤波）进行组合导航解算，以解决系统的非线性问题。因此，卡尔曼滤波的状态向量包含导航状态误差和传感器误差，定义为
+\begin{equation}
+\delta \boldsymbol{x}(t)=\left[\begin{array}{lllllll}
+\left(\delta \boldsymbol{r}^{n}\right)^{T} & \left(\delta \boldsymbol{v}^{n}\right)^{T} & \boldsymbol{\phi}^{T} & \boldsymbol{b}_{g}^{T} & \boldsymbol{b}_{a}^{T} & \boldsymbol{s}_{g}^{T} & \boldsymbol{s}_{a}^{T}
+\end{array}\right]^{T}
+\label{eq:1}
+\end{equation}
+
+其中\eqref{eq:1}表示将陀螺和
+加速度计的零偏及比例因子误差增广到卡尔曼滤波的状态量中进行估计。
+为得到系统状态方程，首先需要得到$\sigma x(t)$ 的连续时间微分方程，写作如下形式：
+\begin{equation}
+\sigma \dot{x}=\bm{F}(t)\sigma x(t)+\bm{G}(t)\bm{\omega}(t)
+\label{eq:2}
+\end{equation}
+
+其中将状态向量$\sigma x(t)$向量求导即对向量的各分量分别对时间 t 求导，可以得到如下位置、速度和姿态误差微分方程
+\begin{gather}
+\delta \dot{\boldsymbol{r}}^{n}=-\boldsymbol{\omega}_{e n}^{n} \times \delta \boldsymbol{r}^{n}+\delta \boldsymbol{\theta} \times \boldsymbol{v}^{n}+\delta \boldsymbol{v}^{n} \\
+\delta \dot{\boldsymbol{v}}^{n}=\mathbf{C}_{b}^{n} \delta \boldsymbol{f}^{b}+\boldsymbol{f}^{n} \times \boldsymbol{\phi}-\left(2 \boldsymbol{\omega}_{i e}^{n}+\boldsymbol{\omega}_{e n}^{n}\right) \times \delta \boldsymbol{v}^{n}+\boldsymbol{v}^{n} \times\left(2 \delta \boldsymbol{\omega}_{i e}^{n}+\delta \boldsymbol{\omega}_{e n}^{n}\right)+\delta \boldsymbol{g}_{p}^{n} \\
+\dot{\boldsymbol{\phi}}=-\boldsymbol{\omega}_{i n}^{n} \times \boldsymbol{\phi}+\delta \boldsymbol{\omega}_{i n}^{n}-\delta \boldsymbol{\omega}_{i b}^{n}
+\end{gather}
+而剩下的陀螺和加速度计零偏及比例因子误差采用一阶高斯马尔科夫模型进行建模。
+
+将上式带入式\eqref{eq:2},可得$\bm{F}$矩阵：
+\begin{equation}
+\mathbf{F}=\left[\begin{array}{ccccccc}
+\mathbf{F}_{r r} & \mathbf{I}_{3 \times 3} & \mathbf{0} & \mathbf{0} & \mathbf{0} & \mathbf{0} & \mathbf{0} \\
+\mathbf{F}_{v r} & \mathbf{F}_{v v} & {\left[\left(\mathbf{C}_{b}^{n} \boldsymbol{f}^{b}\right) \times\right]} & \mathbf{0} & \mathbf{C}_{b}^{n} & \mathbf{0} & \mathbf{C}_{b}^{n} \operatorname{diag}\left(\boldsymbol{f}^{b}\right) \\
+\mathbf{F}_{\phi r} & \mathbf{F}_{\phi v} & -\left(\omega_{i n}^{n} \times\right) & -\mathbf{C}_{b}^{n} & \mathbf{0} & -\mathbf{C}_{b}^{n} \operatorname{diag}\left(\boldsymbol{\omega}_{i b}^{b}\right) & \mathbf{0} \\
+\mathbf{0} & \mathbf{0} & \mathbf{0} & \frac{-1}{T_{g b}} \mathbf{I}_{3 \times 3} & \mathbf{0} & \mathbf{0} & \mathbf{0} \\
+\mathbf{0} & \mathbf{0} & \mathbf{0} & \mathbf{0} & \frac{-1}{T_{a b}} \mathbf{I}_{3 \times 3} & \mathbf{0} & \mathbf{0} \\
+\mathbf{0} & \mathbf{0} & \mathbf{0} & \mathbf{0} & \mathbf{0} & \frac{-1}{T_{g s}} \mathbf{I}_{3 \times 3} & \mathbf{0} \\
+\mathbf{0} & \mathbf{0} & \mathbf{0} & \mathbf{0} & \mathbf{0} & \mathbf{0} & \frac{-1}{T_{a s}} \mathbf{I}_{3 \times 3}
+\end{array}\right]
+\label{eq:6}
+\end{equation}
+其中各分量的具体表达式可参见组合导航讲义，在此不再详述。
+
+状态方程的系统噪声向量$\bm{\omega}(t)$可以写为如下形式：
+\begin{equation}
+\boldsymbol{w}=\left[\begin{array}{llllll}
+\boldsymbol{w}_{v}^{T} & \boldsymbol{w}_{\phi}^{T} & \boldsymbol{w}_{g b}^{T} & \boldsymbol{w}_{a b}^{T} & \boldsymbol{w}_{g s}^{T} & \boldsymbol{w}_{a s}^{T}
+\end{array}\right]^{T}
+\end{equation}
+
+其中$\bm{\omega}$表示一个三维的白噪声向量。
+
+对\eqref{eq:2}进行离散化处理，并根据解微分方程求出离散系统的状态转移矩阵。在时间间隔较短，$\bm{F}$在积分区间变化不太剧烈时，可以把求解状态转移矩阵的矩阵积分作以下的简化：
+\begin{equation}
+\bm{\Phi}_{k / k-1}=\exp \left\{\mathbf{F}\left(t_{k-1}\right) \Delta t\right\} \approx \mathbf{I}+\mathbf{F}\left(t_{k-1}\right) \Delta t
+\label{eq:8}
+\end{equation}
+
+同样，当$\bm{G}(t)$在较短积分区间内变化不太剧烈的时候，离散化后系统噪声的方差阵$\bm{Q}$可以写为
+\begin{equation}
+\mathbf{Q}_{k} \approx \frac{1}{2}\left[\boldsymbol{\Phi}_{k / k-1} \mathbf{G}\left(t_{k-1}\right) \mathbf{q}\left(t_{k-1}\right) \mathbf{G}^{\mathrm{T}}\left(t_{k-1}\right) \boldsymbol{\Phi}_{k / k-1}^{\mathrm{T}}+\mathbf{G}\left(t_{k}\right) \mathbf{q}\left(t_{k}\right) \mathbf{G}^{\mathrm{T}}\left(t_{k}\right)\right] \Delta t
+\label{eq:9}
+\end{equation}
+
+其中连续时间系统噪声方差阵$\bm{q}(t)$一般情况下是常值矩阵，由IMU的传感器误差参数模型决定。$\bm{q}(t)$与$\bm{G}$的具体表达式参加组合导航讲义。
+
+这样即构造出了等效离散系统满足离散卡尔曼滤波的基本方程。
+\subsection{GNSS位置观测方程}
+按理来说，GNSS直接提供了位置观测结果，则观测方程的系数矩阵应该为在位置分量上的一个单位阵和在其他分量均为零矩阵的一个大矩阵，观测值依然表示为INS推算出来的位置减去GNSS观测值的位置。但是由于GNSS 定位解算给出的是天线相位中心（或其它参考点）的位置坐标，INS 机械编排给出的是 IMU测量中心的导航结果，二者在物理上不重合，因此在数据融合解算时需进行杆臂效应改正。
+
+IMU中心位置与GNSS位置的关系可写为如下形式（考虑各状态量误差）：
+\begin{equation}
+\hat{\boldsymbol{r}}_{G}^{n}=\hat{\boldsymbol{r}}_{I}^{n}+\mathbf{D}_{R}^{-1} \hat{\mathbf{C}}_{b}^{n} \boldsymbol{l}^{b}
+\label{eq:10}
+\end{equation}
+
+其中$\hat{\bm{r}}^n_I$为INS推算的IMU中心位置（经纬度表示），$\hat{\boldsymbol{r}}_{G}^{n}$为惯导推算出来的GNSS观测值的天线相位中心位置（经纬度表示），
+$\bm{l}^b$为INS指向GNSS的向量在b系下的投影结果（视为无误差），$\bm{D}^{-1}_R$为将导航系的北东地分量转为经纬度的对角矩阵（视为无误差）。
+设GNSS直接观测的位置为$\tilde{\bm{r}}^n_G$,则观测向量（单位为m）可以表示为：
+\begin{equation}
+\sigma \bm{z}_r=\bm{D}_R(\hat{\bm{r}}^n_G-\tilde{\bm{r}}^n_G)
+\end{equation}
+将\eqref{eq:10}做扰动分析，写成矩阵形式为：
+\begin{equation}
+\sigma \bm{z}_r=\bm{H}_r\sigma\bm{x}+\bm{n}_r
+\end{equation}
+其中
+\begin{equation}
+\bm{H}_r=\begin{bmatrix}
+\bm{I}_3&\bm{0}_3&(\bm{C}^n_b\bm{l}^b\times)&\bm{0}_3&\bm{0}_3&\bm{0}_3&\bm{0}_3
+\end{bmatrix}
+\end{equation}
+实际解算时，观测矩阵 $\bm{H}_r $中的$\bm{C}^n_b$用最新时刻的惯导姿态进行赋值。
+\subsection{GNSS速度观测方程}
+与上述位置观测方程同理，考虑到杆臂以及姿态误差，速度误差和陀螺角速度误差的影响，并把速度观测误差向量表示为 INS 推算的速度与 GNSS 解算的速度之差：
+\begin{equation}
+\begin{aligned}
+\delta \boldsymbol{z}_{v} & =\hat{\boldsymbol{v}}_{G}^{n}-\tilde{\boldsymbol{v}}_{G}^{n} \\
+& =\delta \boldsymbol{v}^{n}-\left(\boldsymbol{\omega}_{i n}^{n} \times\right)\left(\mathbf{C}_{b}^{n} \boldsymbol{l}^{b} \times\right) \boldsymbol{\phi}-\left[\mathbf{C}_{b}^{n}\left(\boldsymbol{l}^{b} \times \boldsymbol{\omega}_{i b}^{b}\right)\right] \times \boldsymbol{\phi}-\mathbf{C}_{b}^{n}\left(\boldsymbol{l}^{b} \times\right) \delta \boldsymbol{\omega}_{i b}^{b}+\boldsymbol{n}_{v}
+\end{aligned}
+\end{equation}
+写成矩阵形式有：
+\begin{equation}
+\sigma \bm{z}_v=\bm{H}_v\sigma\bm{x}+\bm{n}_v
+\end{equation}
+其中
+\begin{equation}
+\mathbf{H}_{v}=\left[\begin{array}{lllllll}
+\mathbf{0}_{3} & \mathbf{I}_{3} & \mathbf{H}_{v 3} & -\left(\mathbf{C}_{b}^{n} \boldsymbol{l}^{b} \times\right) & \mathbf{0}_{3} & \mathbf{H}_{v 6} & \mathbf{0}_{3}
+\end{array}\right] \\
+\end{equation}
+\begin{equation}
+\left\{\begin{array}{l}
+\mathbf{H}_{v 3}=-\left(\boldsymbol{\omega}_{i n}^{n} \times\right)\left(\mathbf{C}_{b}^{n} \boldsymbol{l}^{b} \times\right)-\left[\mathbf{C}_{b}^{n}\left(\boldsymbol{l}^{b} \times \boldsymbol{\omega}_{i b}^{b}\right) \times\right] \\
+\mathbf{H}_{v 6}=-\mathbf{C}_{b}^{n}\left(\boldsymbol{l}^{b} \times\right) \operatorname{diag}\left(\boldsymbol{\omega}_{i b}^{b}\right)
+\end{array}\right. \\
+\end{equation}
+
+\section{编程实现过程}
+\subsection{结构体以及类的定义}
+由于程序冗长，工程浩大，细节繁琐，涉及变量和状态较多，故先将必要的结构体和类进行定义。在"InertialNavigation.h"中进行如下结构体的定义
+\begin{lstlisting}[language=C++]
+struct ANGLE
+{
+	double yaw;
+	double pitch;
+	double roll;
+
+	ANGLE(double y=0.0,double p=0.0,double r=0.0)
+	{
+		yaw = y;
+		pitch = p;
+		roll = r;
+	}
+};
+\end{lstlisting}
+其中IMUError用来存放估计出来的零偏和比例因子，而不能直接从外界获取，故没有写构造函数。
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+struct IMUError
+{
+	Vector gyrbias;//标准单位rad/s
+	Vector accbias;//标准单位m/s^2
+	Vector gyrscale;//标准单位 1
+	Vector accscale;//标准单位 1
+
+	IMUError():gyrbias(3),accbias(3),gyrscale(3),accscale(3)
+	{
+
+	}
+};
+\end{lstlisting}
+而IMUNoise用来存放IMU的噪声参数，可以直接从外界给出的值进行赋值，故重写构造函数并将外界传入的单位转换为标准单位。
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+struct IMUNoise
+{
+	Vector ARW;//角度随机游走
+	Vector VRW;//速度随机游走
+	Vector gb_std;//陀螺仪零偏标准差
+	Vector ab_std;//加速度计零偏标准差
+	Vector gs_std;//陀螺仪比例因子标准差
+	Vector as_std;//加速度计比例因子标准差
+	double corr_t;//相关时间
+
+
+	IMUNoise(Vector arw , Vector vrw , Vector gb, Vector ab, Vector gs  ,
+ Vector as , double t):ARW(3),VRW(3),gb_std(3),ab_std(3),gs_std(3),as_std(3)
+	{
+		ARW = arw * D2R * (1.0 / 60.0);//输入参数单位为[deg/s/sqrt(h)]
+		VRW = vrw * (1.0 / 60.0);//输入参数单位为[m/s/sqrt(h)]
+		gb_std = gb * D2R * (1.0 / 3600.0);//输入参数单位为[deg/h]
+		ab_std = ab * 1.0E-5;//输入参数单位为[mGal]
+		gs_std = gs * 1.0E-6;//输入参数单位为[ppm]
+		as_std = as * 1.0E-6;//输入参数单位为[ppm]
+		corr_t = t;
+	}
+
+	
+};
+\end{lstlisting}
+IMUDATA用来存放读入的IMU数据（增量形式）。
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+struct IMUDATA
+{
+	double time;
+
+	Vector AngInc;
+	Vector VelInc;
+
+	IMUDATA() :AngInc(3), VelInc(3)
+	{
+
+	}
+};
+\end{lstlisting}
+GNSSDATA用来存放GNSS数据以及可用性信息
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,*,,,&,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+struct GNSSDATA
+{
+	double time;
+
+	Vector Blh;
+	Vector Vel;
+
+	Vector Blh_std;
+	Vector Vel_std;
+
+	bool DataAvailable;
+
+	GNSSDATA():Blh(3),Vel(3),Blh_std(3),Vel_std(3)
+	{
+		time = 0.0;
+		DataAvailable = false;
+	}
+};
+\end{lstlisting}
+
+另外，出现的Vector和Matrix 都是自己实现的矢量和矩阵类，功能包括基本的矩阵和向量运算。
+
+定义Body类，继承自IMUBOX类(包含上一时刻与当前时刻的位置速度姿态和姿态矩阵等结构体成员,已在前期课程中实现了输入IMUDATA完成纯惯导机械编排)，包含前一时刻和当前IMUDATA,GNSS数据，IMU误差结构体，IMU噪声结构体，杆臂向量，时间标记，状态协方差Cov，系统噪声矩阵q,待估参数x。
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,*,,,&,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+class Body :public IMUBOX
+{
+
+public:
+
+	Body(NavState inistate, NavState inistate_std, IMUNoise imun, Vector lb);
+
+	void AddIMUData(double* OneLineIMU);
+	void AddGNSSData(double* OneLineGNSS);
+
+	void SetTimestamp(double time);
+	bool IsGNSSDataAvailable();
+
+	void work();
+
+	void BodyShow();
+	void BodyOutputToFile(fstream& fout);
+	void CovOutputToFile(fstream& fout);
+
+private:
+
+	IMUDATA IMUData_pre, IMUData_cur;//前一时刻和现在的IMU数据
+	GNSSDATA GNSSData;//GNSS数据
+
+	double timestamp;//每次要进行内插的时间记号（通常为初始时刻和有GNSS数据整秒）
+
+	IMUError ImuError;
+	IMUNoise ImuNoise;
+
+	Vector antlever;//杆臂（由b->GNSS,在b系下测量）
+
+	Matrix Cov;//状态协方差（21*21）
+	Matrix q;//系统噪声矩阵（18*18）
+	Matrix x;//待估的参数（21*1）
+
+	void ImuInterpolate(IMUDATA& IMUData_pre, IMUDATA& IMUData_cur, double
+ midtime, IMUDATA& IMUData_mid);
+	
+	void ImuPropagation(IMUDATA& IMUData_pre, IMUDATA& IMUData_cur);
+	void GNSSUpdating(IMUDATA& IMUData_mid);
+
+	void Feedback();
+	void Compensate();
+
+};
+\end{lstlisting}
+
+并写构造函数，用传入初始的位置速度姿态信息调用IMUBOX父类的构造函数对父类的成员（当前与上一时刻位置速度姿态）赋值，用当前的方差信息对Cov矩阵赋值，用IMUNoise的噪声信息对q阵赋值。
+
+\subsection{IMU状态传播实现}
+首先调用父类机械编排函数实现此时的状态更新，然后使用内部成员上一时刻位置速度姿态实现F矩阵和G矩阵各分块矩阵的构造，并最终按\eqref{eq:6}重组F矩阵和G矩阵（已在矩阵类中重载运算符实现了矩阵拼接功能）。
+\lstset{basicstyle=\footnotesize}
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+	F = (Frr, I_33, Zero_33, Zero_33, Zero_33, Zero_33, Zero_33)
+& (Fvr, Fvv, Cn_bfb.AntiSym(), Zero_33, Cn_b_pre, Zero_33, Cn_b_pre * fb.diag())
+& (Fphir, Fphiv, -wn_in.AntiSym(), -Cn_b_pre, Zero_33, -Cn_b_pre * wb_ib.diag(), Zero_33)
+& (Zero_33, Zero_33, Zero_33, _1_T_I_33, Zero_33, Zero_33, Zero_33)
+& (Zero_33, Zero_33, Zero_33, Zero_33, _1_T_I_33, Zero_33, Zero_33)
+& (Zero_33, Zero_33, Zero_33, Zero_33, Zero_33, _1_T_I_33, Zero_33)
+& (Zero_33, Zero_33, Zero_33, Zero_33, Zero_33, Zero_33, _1_T_I_33);
+
+
+	G = (Zero_33, Zero_33, Zero_33, Zero_33, Zero_33, Zero_33)
+& (Cn_b_pre, Zero_33, Zero_33, Zero_33, Zero_33, Zero_33)
+& (Zero_33, Cn_b_pre, Zero_33, Zero_33, Zero_33, Zero_33)
+& (Zero_33, Zero_33, I_33, Zero_33, Zero_33, Zero_33)
+& (Zero_33, Zero_33, Zero_33, I_33, Zero_33, Zero_33)
+& (Zero_33, Zero_33, Zero_33, Zero_33, I_33, Zero_33)
+& (Zero_33, Zero_33, Zero_33, Zero_33, Zero_33, I_33);
+
+\end{lstlisting}
+
+构造完成后，按\eqref{eq:8}\eqref{eq:9}给出的简化公式计算状态转移Phi矩阵和离散系统噪声方差阵Q。再按卡尔曼滤波的一步预测公式，实现状态方差的传播
+\lstset{basicstyle=\small}
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+	Q = G * q * G.T() * delta_t;
+	Q = (Phi * Q * Phi.T() + Q) * 0.5;
+
+	//由于状态总为0矩阵，故此步可以省略
+	//x = Phi * x;
+	Cov = Phi * Cov * Phi.T() + Q;
+
+\end{lstlisting}
+
+\subsection{GNSS测量更新实现}
+传入IMUDATA类对象(需要用到当前的加速度计输出和角速度输出信息)，使用已读入的内部成员GNSSDATA中的数据，实现GNSS观测方程的构造和状态量x的计算更新。
+
+构造观测向量：
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+	//位置观测向量表示为 INS 推算的位置与 GNSS 位置观测之差
+	Vector Zr(3);
+	Zr = Dr * (IMU_to_GNSSBlh - GNSSData.Blh );
+	
+	//速度观测向量可表示为 INS 推算的速度与 GNSS 解算的速度之差
+	Vector Zv(3);
+	Zv = Vel - GNSSData.Vel;
+
+\end{lstlisting}
+
+计算中间变量并完成H矩阵构造。并将位置观测方程和速度观测方程的两个H矩阵上下拼接。
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+	Matrix Hv3(3, 3);
+	Hv3 = -1.0 * wn_in.AntiSym() * Cn_blb.AntiSym() - Cn_b_lb_wbib.AntiSymMatrix();
+	Matrix Hv6(3, 3);
+	Hv6 = -1.0 * Cn_b * antlever.AntiSym() * wb_ib.diag();
+
+	H = (I_33, Zero_33, Cn_blb.AntiSym(), Zero_33, Zero_33, Zero_33, Zero_33)
+		& (Zero_33, I_33, Hv3, -1.0 * (Cn_blb).AntiSym(), Zero_33, Hv6, Zero_33);
+
+\end{lstlisting}
+
+再使用GNSSData中给出的观测标准差信息，组成测量噪声的R矩阵
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+	//观测噪声矩阵
+	Matrix pos_var(3, 3);
+	Matrix vel_var(3, 3);
+
+	pos_var = GNSSData.Blh_std.diag() * GNSSData.Blh_std.diag();
+	vel_var = GNSSData.Vel_std.diag() * GNSSData.Vel_std.diag();
+
+	//Matrix R(6, 6);
+	Matrix R = (pos_var, Zero_33) & (Zero_33, vel_var);
+
+\end{lstlisting}
+
+之后，套用卡尔曼滤波给出的公式，进行状态的更新和状态方差阵更新。更新完毕后，将GNSSData的可用性设置为false。
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+	//卡尔曼滤波测量更新
+	Matrix K = Cov * H.T() * (H * Cov * H.T() + R).inv();
+	//x = x + K * (Z - H * x);
+	x = K * Z;
+	Cov = (I_2121 - K * H) * Cov * (I_2121 - K * H).T() + K * R * K.T();
+
+	//设置GNSS数据状态为不可用
+	GNSSData.DataAvailable = false;
+\end{lstlisting}
+
+\subsection{INS-GNSS松组合导航整体实现}
+
+首先定义Body类对象，并用已知的初始条件传入构造函数将其初始化。之后设置时间标签为开始时刻，并通过循环读掉开始时刻之前的IMU和GNSS数据。
+
+之后，在循环中，每添加一行IMU数据，进行调用body.work()函数。进入work函数内部后，先检查当前IMU数据的时间是否小于时间标记（设置为GNSSData的时间），小于则只进行IMU的传播，若大于，则说明需要进行GNSS更新。具体更新步骤为，先内插出一个在timestamp的IMU数据，然后用此IMU数据实现前半IMU传播，得到最新的当前时刻状态。然后使用这个内插IMU数据作为参数带入GNSS更新函数中，完成状态更新，更新完后立刻将状态进行然后再次进行一个IMU传播，得到当前读入IMU数据时刻的状态。
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+void Body::work()
+{
+	//如果当前时间小于时间标记，则继续传播IMU状态
+	if (IMUData_cur.time < timestamp)
+	{
+		ImuPropagation(IMUData_pre, IMUData_cur);
+	}
+	//当前时间大于时间标记，则首先进行对时间标记时刻的状态内插，再判断是否进行GNSS更新
+	//一般起始时刻不更新，后面每个GNSS整秒都进行更新
+	else if (IMUData_cur.time > timestamp)
+	{
+		IMUDATA IMUData_mid;
+
+		//内插出中间时刻IMU增量数据
+		ImuInterpolate(IMUData_pre, IMUData_cur, timestamp, IMUData_mid);
+
+		//前半状态传播
+		ImuPropagation(IMUData_pre, IMUData_mid);
+
+		if ( GNSSData.DataAvailable == true )
+		{
+			//测量更新
+			GNSSUpdating(IMUData_mid);
+		}
+
+		Feedback();
+
+		ImuPropagation(IMUData_mid, IMUData_cur);
+
+	}
+
+	return;
+	
+}
+\end{lstlisting}
+最后在work调用后，判断GNSS数据是否可用，不可用则读取新的GNSS数据并将可用性设置为true，并自动将时间标记设置为这个GNSS数据的时间。这样一来，IMU将持续进行状态传播直到当IMU数据的时间再次超过此时间标记再进行GNSS更新。循环此步骤即实现了松组合导航算法。
+
+以下是在main函数的部分实现代码。
+\begin{lstlisting}[language=C++,emph={Matrix,ANGLE,Vector,IMUError,IMUDATA,IMUNoise,GNSSDATA,IMUBOX},emphstyle=\color{cyan}]
+	while (!fileloader_INS.isEof())
+	{
+		fileloader_INS.load(OneLineImu);
+
+		//跳过起始时刻之前的数据
+		if (OneLineImu[0] < STARTTIME)
+		{
+			body.AddIMUData(OneLineImu.data());
+			continue;
+		}
+		//添加IMU数据
+		body.AddIMUData(OneLineImu.data());
+
+		//进行松组合算法传播误差状态和测量更新工作
+		body.work();
+
+		//若GNSS更新后读取一组新GNSS数据
+		if (body.IsGNSSDataAvailable() == false)
+		{
+			fileloader_GNSS.load(OneLineGNSS);
+			body.AddGNSSData(OneLineGNSS.data());
+		}
+	}
+
+\end{lstlisting}
+
+\section{结果展示}
+\subsection{纯松组合结果展示}
+
+经过上述代码编译运行后，将数据输出到txt文件中，再导入MATLAB中进行成图，得到组合导航解算数据与参考数据中载体的位置速度姿态随时间的变化图并比较二者差异。
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{BLH.jpg}
+\caption{载体位置解算结果}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{Vel.jpg}
+\caption{载体速度解算结果}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{Angle.jpg}
+\caption{载体姿态解算结果}
+\end{figure}
+
+可以看到解算结果与参考结果的曲线几乎完美的重合在一起，说明解算成果较为正确，松组合算法程序成功运行。
+
+
+\subsection{初始方差和噪声阵对收敛结果分析}
+
+将正常按课程要求中给出的初始方差设置P阵，用\eqref{eq:9}式求取Q阵，按GNSS观测数据给出的观测噪声构造R阵进行松组合解算，将所得的各状态的方差随时间变化作图可得：
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{var_pva.jpg}
+\caption{载体位置速度姿态方差解算结果}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{var_bs.jpg}
+\caption{载体零偏项比例因子项方差解算结果}
+\end{figure}
+
+可以看到位置速度姿态的方差大都一开始就稳定在一个比较小的量级，而陀螺和加速度的零偏与比例因子项则存在慢慢收敛的过程。
+
+对图像进行放大后可以看到，方差曲线存在随时间呈锯齿状的上下波动，这是因为在没有GNSS数据的时刻，卡尔曼滤波不断进行状态的一步预测，推演状态的传播并进行方差的传递和累积，而到了有GNSS数据时刻进行测量更新，更新后状态的方差也一并下降。图中位置与速度的方差在96800s前后有一个十分显著的峰值，也是因为这几个历元的GNSS数据缺失导致的方差传递所致。
+
+接下来设置初始方差阵为原先的两倍
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{var_pva_2P.jpg}
+\caption{两倍P阵载体位置速度姿态方差解算结果}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{var_bs_2P.jpg}
+\caption{两倍P阵载体零偏项比例因子项方差解算结果}
+\end{figure}
+
+可以看到图像与原先差异不大，仅仅是初值有差异，整个曲线形状几乎不变，说明初值的设置对卡尔曼滤波的影响不太大，只要卡尔曼滤波方程正确，方差都能随着测量更新快速下降收敛。
+
+设置系统噪声阵Q为原先的两倍
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{var_pva_2Q.jpg}
+\caption{两倍Q阵载体位置速度姿态方差解算结果}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{var_bs_2Q.jpg}
+\caption{两倍Q阵载体零偏项比例因子项方差解算结果}
+\end{figure}
+
+可以看到，在位置速度姿态的收敛情况变化不大，但是在加速度计陀螺仪误差项时，有部分方差曲线会持续增大，无法收敛。说明了Q阵过大会导致状态的方差矩阵变大，即使测量更新也无法将其拉回，最终导致状态发散。
+
+设置观测噪声阵R为原先的两倍
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{var_pva_2R.jpg}
+\caption{两倍R阵载体位置速度姿态方差解算结果}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{var_bs_2R.jpg}
+\caption{两倍R阵载体零偏项比例因子项方差解算结果}
+\end{figure}
+
+发现与原来相比的变化也不太明显，可能是由于GNSS数据给出的信息比较精确，方差比较小，即使两倍也相比于惯导状态的方差仍为小量，测量更新依然会很好地收敛。合理猜测继续放大观测噪声阵R将会导致收敛速度变慢。
+\chapter{其他辅助算法简介与实现}
+\section{辅助算法简介}
+\subsection{零速更新算法（ZUPT）}
+零速更新算法是指当运动载体静止的时候，在N系下的三轴速度都为0.利用这一信息，当判断载体为0速时，则可以假想有某一神秘仪器对载体的速度进行了观测并给出了0速的观测值，建立观测方程带入卡尔曼滤波中即可对载体状态进行更新，用来抑制惯导在GNSS失锁时刻的状态飘移。
+
+设惯导推算出的速度为$\hat{v}$,观测到的0速为$\tilde{v}$,有如下关系式：
+\begin{gather}
+\bm{\hat{v}}=\bm{v}+\bm{\sigma v}\\
+\bm{\tilde{v}}=\bm{v}-\bm{n}\\
+\bm{\hat{v}}-\bm{\tilde{v}}=\sigma \bm{v}+\bm{n}
+\end{gather}
+
+其中$n$表示观测噪声，代表了对这个虚拟0值的相信程度。
+令观测向量为$Z=(\hat{v}-\tilde{v})=\hat{v}$,有
+\begin{equation}
+\bm{Z}=\bm{H}\delta \boldsymbol{x}+\bm{n}
+\end{equation}
+其中
+\begin{equation}
+\bm{H}=\begin{bmatrix}
+\bm{0}&\bm{I}&\bm{0}&\bm{0}&\bm{0}&\bm{0}&\bm{0}
+\end{bmatrix}
+\end{equation}
+
+\subsection{非完整性约束算法（NHC）与里程计更新算法（ODO）}
+非完整性约束只正常车辆行驶过程中，不发生飘移，打滑，车轮不离开地面。这样一来，载体的侧向速度以及垂向速度理论上应一直保持为0.里程计则可以一直提供车体的前向速度，可以作为卡尔曼观测更新的数据使用。
+
+设里程计坐标系的三轴朝向与IMU保持一致，即二者仅有杆臂上的差异,$\mathbf{C}_{b}^{v}$为单位阵。使用INS机械编排推导的车轮速度为：
+\begin{equation}
+\begin{array}{l}
+\hat{\boldsymbol{v}}^v_{wheel}=\mathbf{C}_{b}^{v} \hat{\mathbf{C}}_{n}^{b} \hat{\boldsymbol{v}}_{\text {IMU}}^{n}+\mathbf{C}_{b}^{v}\left(\hat{\boldsymbol{\omega}}_{n b}^{b} \times\right) \boldsymbol{I}_{\text {wheel }}^{b} \\
+\approx v_{\text {wheel }}^{v}+C_{b}^{v} C_{n}^{b} \delta v_{I M U}^{n}-C_{b}^{v} C_{n}^{b}\left(v_{I M U}^{n} \times\right)-C_{b}^{v}\left(l_{\text {wheel }}^{b} \times\right) \delta \omega_{i b}^{b} \\
+\end{array}
+\end{equation}
+
+车体坐标系的速度为
+\begin{equation}
+\tilde{\bm{v}}^v_{wheel}=\bm{v}^v_{wheel}-\bm{n}
+\end{equation}
+
+其中车体的观测速度向量$\bm{v}_{wheel}$为,v有ODO里程计提供，第二三项为虚拟的0值
+\begin{equation}
+\tilde{\bm{v}}^v_{wheel}=\begin{bmatrix}
+v&0&0
+\end{bmatrix}
+\end{equation}
+
+同理可构造观测方程
+\begin{equation}
+\bm{Z}=\hat{\boldsymbol{v}}^v_{wheel}-\tilde{\bm{v}}^v_{wheel}=\bm{H}\delta \boldsymbol{x}+\bm{n}
+\end{equation}
+其中$\bm{H}$为：
+\begin{equation}
+\mathbf{H}=\left[\begin{array}{lllllll}
+\mathbf{0}_{3} & \mathbf{C}_{b}^{v} \mathbf{C}_{n}^{b} & -\mathbf{C}_{b}^{v} \mathbf{C}_{n}^{b}\left(\boldsymbol{v}_{L M U}^{n} \times\right) & -\mathbf{C}_{b}^{v}\left(l_{\text {wheel }}^{b} \times\right) & \mathbf{0}_{3} & \mathbf{H}_{v w, 6} & \mathbf{0}_{3}
+\end{array}\right]
+\end{equation}
+其中,
+\begin{equation}
+\mathbf{H}_{ 6}=-\mathbf{C}_{b}^{v}\left(l_{\text {whel }}^{b} \times\right) \operatorname{diag}\left(\omega_{i b}^{b}\right)
+\end{equation}
+
+需要进行单独NHC与ODO的测量更新时，可以直接用上述方程，在观测值向量$\bm{Z}$和观测矩阵$\bm{H}$前加入两行和一行的单位阵将整个方程降维即可使用。
+
+\section{结果展示}
+使用在一个窗口的加速度计输出与静止时的理论常值作差，小于阈值则判断为0速，进行ZUPT更新。对惯导数据进行解算（其中在97000s开始有一段120s的GNSS的失锁）进行解算，作图如下。
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{BLH0_120s.jpg}
+\caption{载体位置解算结果(零速更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{Vel0_120s.jpg}
+\caption{载体速度解算结果(零速更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{Angle0_120s.jpg}
+\caption{载体姿态解算结果(零速更新)}
+\end{figure}
+
+可以看出，在其他时段，开启零速更新算法后的解算与无零速更新算法时的结果几乎一致，而在GNSS失锁时段，在使用零速更新算法后能非常有效地抑制位置速度姿态的飘移。
+
+读取里程计数据，可以发现里程计的数据时刻与惯导是对齐的，于是可以对每一个惯导状态的传播后进行NHC与ODO的更新。
+
+在选取失锁时段96500s开始失锁10s,之后分别为96600s（30s）,96700s(60s),96800s(90s),97000s(120s)的GNSS数据进行组合导航解算，并作图如下。
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{BLHN1_310s.jpg}
+\caption{载体位置解算结果(NHC更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{VelN1_310s.jpg}
+\caption{载体速度解算结果(NHC更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{AngleN1_310s.jpg}
+\caption{载体姿态解算结果(NHC更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{BLHO1_310s.jpg}
+\caption{载体位置解算结果(ODO更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{VelO1_310s.jpg}
+\caption{载体速度解算结果(ODO更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{AngleO1_310s.jpg}
+\caption{载体姿态解算结果(ODO更新)}
+\end{figure}
+
+可以发现NHC和ODO的效果都不好，加入NHC和ODO后，在失锁时段甚至出现了反向飘移或比不加入时飘移更大的现象。
+
+在经过非常艰辛的反复检查代码和公式，不断调试更新间隔和观测方差R阵，效果都非常不太理想。最终发现选取的失锁时段载体速度不高或接近零速。在更换失锁时段为
+96300s(120s),96500(90s),
+96600(60s),96700(30s),96800s(10s)后作图如下：
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{BLHN2_310s.jpg}
+\caption{载体位置解算结果(NHC更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{VelN2_310s.jpg}
+\caption{载体速度解算结果(NHC更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{AngleN2_310s.jpg}
+\caption{载体姿态解算结果(NHC更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{BLHO2_310s.jpg}
+\caption{载体位置解算结果(ODO更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{VelO2_310s.jpg}
+\caption{载体速度解算结果(ODO更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{AngleO2_310s.jpg}
+\caption{载体姿态解算结果(ODO更新)}
+\end{figure}
+
+可以看到NHC的效果在失锁时段十分显著，非常有效的抑制了惯导在GNSS失锁时刻的误差累计和状态飘移，加入NHC后与参考值几乎一致。加入ODO后虽然也会发生失锁时段后的飘移，但是会稍稍对飘移程度有抑制作用，使用ODO后比不使用的结果较参考真值更为接近。
+
+猜测造成NHC与ODO的效果与失锁时段有关的原因是由于载体运动速度不高的情况下，再去引用虚拟的侧向0速度值和前向的测量速度值进行状态更新对惯导本身状态发散的拉回效果不大，反而还加入了更多的噪声和不确定状态，造成比不加入时发散更快的现象。
+
+使用NHC加ODO的组合算法加入组合导航中，设置NHC的R阵为$\left[\begin{array}{cc}0.01&0.00\\0.00&0.01\end{array}\right]$,ODO的R阵为[0.01]时，进行数据解算后 ，发现会对解算航向角造成约有3到5度的偏差，北向速度则有约0.5m/s的偏差。再次调整NHC的R阵为$\left[\begin{array}{cc}0.02&0.00\\0.00&0.02\end{array}\right]$，ODO为[0.04]时，效果较好，绘制图如下：
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{BLHNO_310s.jpg}
+\caption{载体位置解算结果(NHC+ODO更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{VelNO_310s.jpg}
+\caption{载体速度解算结果(NHC+ODO更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{AngleNO_310s.jpg}
+\caption{载体姿态解算结果(NHC+ODO更新)}
+\end{figure}
+
+可以看到NHC加ODO对惯导状态在GNSS失锁时段的漂移的抑制作用十分显著，加入后几乎与参考曲线完全重合，实现了GNSS失锁状态下惯导依然能持续运行并提供较为可靠的位置速度姿态信息。
+
+接下来将上述几种方法一并绘制图像比较差别：
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{BLHA_310s.jpg}
+\caption{载体位置解算结果(NHC+ODO更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{VelA_310s.jpg}
+\caption{载体速度解算结果(NHC+ODO更新)}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[height=10cm,width=1.0\linewidth]{AngleA_310s.jpg}
+\caption{载体姿态解算结果(NHC+ODO更新)}
+\end{figure}
+
+比较可以得出NHC+ODO同时使用时对惯导漂移的抑制效果最好，且在非失锁时刻对于卡尔曼滤波的正常运行，惯导的状态传递和GNSS测量更新不会造成负面影响。
+
+
+\chapter{心得体会}
+经过这次惯导松组合的实现，我对本来只是模糊的一个概念的松组合算法有了更清晰的认识，对它的每一个公式的细节和实际编程实现需要注意的操作也有了较为全面的认知。所谓的松组合算法的简单可能只是相对其他算法而言的，但真正实现一遍松组合算法，将惯导与GNSS数据进行有效组合还是一个非常复杂且繁琐的过程，如起始的历元是否需要内插以及如何内插，各个IMU误差参数如何转换为标准单位等等问题，并且只要有一处疏忽，整个程序的结果将会离实际值越偏越大，最后检查也无从查起。所以以后应养成一个习惯，把外部的数据进来是就换成标准单位，想输出到控制台或文件时再转为常用单位。
+
+此外，对于实验中遇到的问题，这次是对于NHC与ODO的改正效果非常不好，比原来不加的效果漂移更大，并且无论如何检查代码都没有找到任何错误，最后抱着试一试的心态将数据做了改动，总算得到了预期效果。看来从多方面分析问题也是十分重要的一环。
+
+最后对课程提一些意见。希望可以在课堂上在多花时间介绍松组合具体的算法，对其具体的卡尔曼滤波状态量，状态方程，观测方程以及对惯导和GNSS的数据时间同步能有详细的讲解，否则在动手实现的过程中还是要花大量时间找资料理解公式等，导致最终实现中花了一整个寒假还没写完。另外在课程要求中给出的一个单位转换有个小错误，应该是，$1Gal=1cm/s^2$,而不是$1mGal=1cm/s^2$。
+
+
+\end{document}
+
+
+
+
+
+
+
